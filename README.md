@@ -3,7 +3,7 @@
 This is a simple ComputerCraft script that displays the used bytes on your Monitor from your storage cells within an AE 2 system.
 
 ## Requirements
-- **Minecraft Version**: [Your Minecraft Version Here]
+- **Minecraft Version**: 1.20.1
 - **Mods Required**: 
   - **ComputerCraft**
   - **AdvancedPeripherals**
