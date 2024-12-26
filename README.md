@@ -1,6 +1,6 @@
 # AE2 Storage Monitor Code for ComputerCraft
 
-This is a simple ComputerCraft script that displays the used bytes in your storage cells within an AE 2 system.
+This is a simple ComputerCraft script that displays the used bytes on your Monitor from your storage cells within an AE 2 system.
 
 ## Requirements
 - **Minecraft Version**: [Your Minecraft Version Here]
