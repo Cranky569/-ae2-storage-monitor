@@ -28,11 +28,7 @@ This is a simple ComputerCraft script that displays the used bytes on your Monit
 
 The script will now display the used bytes in your AE2 storage cells on the connected monitor.
 
-## License
-
-[Your License Information Here]
-
 ## Credits
 
-- This script was created by [Your Name or GitHub Username].
+- This script was created by Cranky5.
 - Special thanks to the creators of ComputerCraft, AdvancedPeripherals, and Applied Energistics 2 for their amazing mods!
