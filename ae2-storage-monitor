@@ -1,0 +1,245 @@
+-- Funktion zum Formatieren großer Zahlen in ein menschenlesbares Format (z.B. 1.2M)
+function formatBytes(bytes)
+    if bytes >= 1000000 then
+        return string.format("%.1fM", bytes / 1000000)
+    elseif bytes >= 1000 then
+        return string.format("%.1fK", bytes / 1000)
+    else
+        return tostring(bytes)
+    end
+end
+
+-- Funktion zum Berechnen des verwendeten und maximalen Item-Speichers
+function getItemStorage()
+    local usedItems = 0
+    local maxItems = 0
+    local err = ""
+
+    local bridge = peripheral.find("meBridge")
+    if bridge then
+        local usedErr
+        usedItems, usedErr = bridge.getUsedItemStorage()
+        if not usedErr or usedErr == "" then
+            local maxErr
+            maxItems, maxErr = bridge.getTotalItemStorage()
+            if maxErr and maxErr ~= "" then
+                err = "Error retrieving max item storage: " .. maxErr
+            end
+        else
+            err = "Error retrieving used item storage: " .. usedErr
+        end
+    else
+        err = "ME Bridge not found."
+    end
+
+    return usedItems, maxItems, err
+end
+
+-- Funktion zum Berechnen des verwendeten und maximalen Fluid-Speichers
+function getFluidStorage()
+    local usedFluids = 0
+    local maxFluids = 0
+    local err = ""
+
+    local bridge = peripheral.find("meBridge")
+    if bridge then
+        local usedErr
+        usedFluids, usedErr = bridge.getUsedFluidStorage()
+        if not usedErr or usedErr == "" then
+            local maxErr
+            maxFluids, maxErr = bridge.getTotalFluidStorage()
+            if maxErr and maxErr ~= "" then
+                err = "Error retrieving max fluid storage: " .. maxErr
+            end
+        else
+            err = "Error retrieving used fluid storage: " .. usedErr
+        end
+    else
+        err = "ME Bridge not found."
+    end
+
+    return usedFluids, maxFluids, err
+end
+
+-- Funktion zum Berechnen des verwendeten und maximalen Gas-Speichers
+function getGasStorage()
+    local usedGases = 0
+    local maxGases = 0
+    local err = ""
+
+    local bridge = peripheral.find("meBridge")
+    if bridge then
+        -- Abrufen der Liste der Gase und ihrer Speicherinformationen
+        local gases, gasErr = bridge.listGas()  -- Liste aller Gase im ME-System
+        if not gasErr or gasErr == "" then
+            -- Durchlaufen der Gase und Berechnung des verwendeten Speicherplatzes
+            for _, gas in ipairs(gases) do
+                if gas.bytes then
+                    usedGases = usedGases + gas.bytes
+                end
+            end
+        else
+            err = "Error retrieving gas list: " .. gasErr
+        end
+
+        -- Abrufen der Zellen, die Chemikalien speichern
+        local cells, cellErr = bridge.listCells()  -- Liste aller Zellen im ME-System
+        if not cellErr or cellErr == "" then
+            -- Überprüfen, ob es sich um Chemikalien-Speicherzellen handelt
+            for _, cell in ipairs(cells) do
+                if string.find(cell.item, "chemical_storage_cell") then
+                    -- Hinzufügen des gesamten Speicherplatzes aus Chemikalien-Speicherzellen
+                    maxGases = maxGases + (cell.totalBytes or 0)
+                end
+            end
+        else
+            err = "Error retrieving storage cells: " .. cellErr
+        end
+    else
+        err = "ME Bridge not found."
+    end
+
+    -- Sicherstellen, dass der verwendete Speicher nicht den maximalen Speicher überschreitet
+    if usedGases > maxGases then
+        usedGases = maxGases
+    end
+
+    return usedGases, maxGases, err
+end
+
+-- Funktion zum Zentrieren des Textes auf dem Monitor
+function centerText(monitor, text, row)
+    local width, _ = monitor.getSize()
+    local textLength = string.len(text)
+    local padding = math.floor((width - textLength) / 2)
+    monitor.setCursorPos(padding + 1, row)
+    monitor.write(text)
+end
+
+-- Funktion zur Bestimmung der Farbe basierend auf dem freien Speicherprozentsatz
+function getColorForFreeSpace(percentage)
+    if percentage > 80 then
+        return colors.red  -- Items über 80% verwendet sollten rot angezeigt werden
+    elseif percentage >= 50 then
+        return colors.orange
+    elseif percentage >= 30 then
+        return colors.yellow
+    elseif percentage > 0 then
+        return colors.green  -- Items unter 30% verwendet sollten grün angezeigt werden
+    else
+        return colors.black  -- Im Falle eines ungültigen Werts, auf schwarz setzen
+    end
+end
+
+-- Hauptprogramm zur Ausführung des Codes und Anzeige auf einem Monitor
+function updateDisplay()
+    -- Suche nach Monitor (sollte sich auf dem Computer befinden)
+    local monitor = peripheral.find("monitor")
+    if not monitor then
+        print("No monitor found. Please connect a monitor.")
+        return
+    end
+
+    -- Monitor gefunden, Initialnachrichten anzeigen
+    monitor.setTextColor(colors.green)
+    monitor.clear()
+    monitor.setTextScale(1)
+    centerText(monitor, "Monitor found", 1)
+    sleep(4)
+
+    monitor.clear()
+    monitor.setTextColor(colors.white)
+    centerText(monitor, "Next check up", 1)
+    sleep(3)
+
+    -- Versuche ME Bridge zu initialisieren
+    monitor.clear()
+    local bridge = peripheral.find("meBridge")
+    if bridge then
+        monitor.setTextColor(colors.green)
+        centerText(monitor, "ME Bridge found.", 1)
+        print("ME Bridge initialized successfully.")
+    else
+        monitor.setTextColor(colors.red)
+        centerText(monitor, "Failed to initialize ME Bridge.", 1)
+        print("Failed to initialize ME Bridge.")
+        sleep(4)
+        return
+    end
+    sleep(4)
+
+    -- Regelmäßiger Display-Loop
+    while true do
+        monitor.clear()
+
+        -- Hole den Item-Speicher und behandle Fehler
+        local usedItems, maxItems, errItems = getItemStorage()
+        if errItems == "" then
+            local percentUsedItems = (maxItems > 0) and ((usedItems / maxItems) * 100) or 0
+
+            -- Item-Speicher anzeigen
+            monitor.setTextColor(colors.yellow)
+            centerText(monitor, "Item Storage", 3)
+
+            local spaceColor = getColorForFreeSpace(percentUsedItems)
+            monitor.setTextColor(spaceColor)
+            centerText(monitor, string.format("Used: %s/%s Bytes", formatBytes(usedItems), formatBytes(maxItems)), 4)
+            centerText(monitor, string.format("%.1f%% used", percentUsedItems), 5)
+
+            print(string.format("Item Storage: %s/%s Bytes (%.1f%%) used", formatBytes(usedItems), formatBytes(maxItems), percentUsedItems))
+        else
+            monitor.setTextColor(colors.red)
+            centerText(monitor, "Error: " .. errItems, 3)
+            print("Error: " .. errItems)
+        end
+
+        -- Hole den Fluid-Speicher und behandle Fehler
+        local usedFluids, maxFluids, errFluids = getFluidStorage()
+        if errFluids == "" then
+            local percentUsedFluids = 0
+            if maxFluids > 0 then
+                percentUsedFluids = (usedFluids / maxFluids) * 100
+            end
+
+            -- Fluid-Speicher anzeigen
+            monitor.setTextColor(colors.cyan)
+            centerText(monitor, "Fluid Storage", 6)
+            centerText(monitor, string.format("Used: %s/%s Bytes", formatBytes(usedFluids), formatBytes(maxFluids)), 7)
+            centerText(monitor, string.format("%.1f%% used", percentUsedFluids), 8)
+
+            print(string.format("Fluids: %s/%s Bytes (%.1f%%) used", formatBytes(usedFluids), formatBytes(maxFluids), percentUsedFluids))
+        else
+            monitor.setTextColor(colors.red)
+            centerText(monitor, "Fluids 0/0 Bytes", 6)
+            centerText(monitor, "0% used", 7)
+            print("Fluids: 0/0 Bytes (0%) used")
+        end
+
+        -- Hole den Gas-Speicher und behandle Fehler
+        local usedGases, maxGases, errGases = getGasStorage()
+        if errGases == "" then
+            local percentUsedGases = 0
+            if maxGases > 0 then
+                percentUsedGases = (usedGases / maxGases) * 100
+            end
+
+            -- Chemikalien-Speicher anzeigen
+            monitor.setTextColor(colors.magenta)
+            centerText(monitor, "Chemical Storage", 9)
+            centerText(monitor, string.format("Used: %s/%s Bytes", formatBytes(usedGases), formatBytes(maxGases)), 10)
+            centerText(monitor, string.format("%.1f%% used", percentUsedGases), 11)
+
+            print(string.format("Chemical Storage: %s/%s Bytes (%.1f%%) used", formatBytes(usedGases), formatBytes(maxGases), percentUsedGases))
+        else
+            monitor.setTextColor(colors.red)
+            centerText(monitor, "Chemical 0/0 Bytes", 9)
+            centerText(monitor, "0% used", 10)
+            print("Chemical Storage: 0/0 Bytes (0%) used")
+        end
+
+        sleep(5)  -- 5 Sekunden warten, bevor wieder aktualisiert wird
+    end
+end
+
+-- Hauptfunktion aufrufen
+updateDisplay()
