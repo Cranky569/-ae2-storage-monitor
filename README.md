@@ -8,7 +8,7 @@ This is a simple ComputerCraft script that displays the used bytes on your Monit
 - **Minecraft Version**: 1.20.1
 - **Mods Required**: 
   - **ComputerCraft**
-  - **AdvancedPeripherals**
+  - **[AdvancedPeripherals](https://github.com/IntelligenceModding/AdvancedPeripherals)**
   - **Applied Energistics 2 (AE2)**
 
 ## Setup Instructions
