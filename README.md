@@ -21,7 +21,7 @@ This is a simple ComputerCraft script that displays the used bytes on your Monit
 2. **Download the Script**:
    - Open the Advanced Computer and type the following command:
      ```
-     pastebin get xTAf5mVZ ae2-storage-monitor
+     pastebin get hQLu7zJv ae2-storage-monitor
      ```
 
 3. **Run the Script**:
