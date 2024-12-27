@@ -2,7 +2,9 @@
 
 This is a simple ComputerCraft script that displays the used bytes on your Monitor from your storage cells within an AE 2 system.
 
+<p align="center">
 ![screen](https://raw.githubusercontent.com/Cranky569/-ae2-storage-monitor/refs/heads/Main/Display.JPG)
+</p>
 
 ## Requirements
 - **Minecraft Version**: 1.20.1
