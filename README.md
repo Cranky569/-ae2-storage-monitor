@@ -16,7 +16,7 @@ This is a simple ComputerCraft script that displays the used bytes on your Monit
 ## Setup Instructions
 
 1. **Place a 3x3 Monitor**: 
-   Place a 3x3 Monitor on an Advanced Computer. Ensure that the computer is connected to a **ME Bridge** from Applied Energistics 2 (AE2).
+   on an Advanced Computer. Ensure that the computer is connected to a **ME Bridge** from Applied Energistics 2 (AE2).
 
 2. **Download the Script**:
    - Open the Advanced Computer and type the following command:
