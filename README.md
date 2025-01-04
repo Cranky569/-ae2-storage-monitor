@@ -1,4 +1,4 @@
-# ComputerCraft Storage Monitor Code for AE2
+# ComputerCraft Storage Monitor Script for AE2
 
 This is a simple ComputerCraft script that displays the used bytes on your Monitor from your storage cells within an AE 2 system.
 
