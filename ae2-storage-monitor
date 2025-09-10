@@ -31,6 +31,15 @@ function getFluidStorage()
     return usedFluids, maxFluids
 end
 
+-- Function to calculate free gas storage
+function getGasStorage()
+    local usedGases, maxGases = 0, 0
+    local bridge = peripheral.find("me_bridge")
+    if bridge then
+        usedGases = bridge.getUsedGasStorage()
+        maxGasess = bridge.getTotalGasStorage()
+end
+
 -- Function to center text on the monitor
 function centerText(monitor, text, line)
     local w, _ = monitor.getSize()
@@ -38,6 +47,7 @@ function centerText(monitor, text, line)
     monitor.setCursorPos(x, line)
     monitor.write(text)
 end
+
 
 -- Main program
 function updateDisplay()
@@ -72,6 +82,16 @@ function updateDisplay()
         centerText(monitor, "Fluid Storage", 5)
         centerText(monitor, string.format("Used: %s | Free: %s", formatBytes(usedFluids), formatBytes(freeFluids)), 6)
         centerText(monitor, string.format("%.1f%% Used | %.1f%% Free", percentUsedFluids, percentFreeFluids), 7)
+
+        -- Display gas storage
+        local usedGases, maxGases = getGasStorage()
+        local freeGases = maxGases - usedGases
+        local percentUsedGases = (maxGases > 0) and ((usedGases / maxGases) * 100) or 0
+        local percentFreeGases = 100 - percentUsedGases
+        monitor.setTextColor(colors.purple)
+        centerText(monitor, "Gas Storage", 5)
+        centerText(monitor, string.format("Used: %s | Free: %s", formatBytes(usedGases), formatBytes(freeGases)), 6)
+        centerText(monitor, string.format("%.1f%% Used | %.1f%% Free", percentUsedGases, percentFreeGases), 7)
 
         sleep(5) -- Wait 5 seconds before updating again
     end
