@@ -36,8 +36,8 @@ function getGasStorage()
     local usedGases, maxGases = 0, 0
     local bridge = peripheral.find("me_bridge")
     if bridge then
-        usedGases = bridge.getUsedGasesStorage()
-        maxGases = bridge.getTotalGasesStorage()
+        usedGases = bridge.getUsedItemStorage()
+        maxGases = bridge.getTotalChemicalStorage()
     end
     return usedGases, maxGases
 end
@@ -90,7 +90,7 @@ function updateDisplay()
         local percentUsedGases = (maxGases > 0) and ((usedGases / maxGases) * 100) or 0
         local percentFreeGases = 100 - percentUsedGases
         monitor.setTextColor(colors.purple)
-        centerText(monitor, "Gas Storage", 5)
+        centerText(monitor, "Chemical Storage", 5)
         centerText(monitor, string.format("Used: %s | Free: %s", formatBytes(usedGases), formatBytes(freeGases)), 6)
         centerText(monitor, string.format("%.1f%% Used | %.1f%% Free", percentUsedGases, percentFreeGases), 7)
 
