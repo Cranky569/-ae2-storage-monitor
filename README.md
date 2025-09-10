@@ -6,16 +6,9 @@ This is a simple ComputerCraft script that displays the used bytes on your Monit
   <img src="https://raw.githubusercontent.com/Cranky569/-ae2-storage-monitor/refs/heads/Main/Display.JPG" alt="screen">
 </p>
 
-## Requirements
-- **Minecraft Version**: 1.20.1
-- **Mods Required**: 
-  - **ComputerCraft**
-  - **[AdvancedPeripherals](https://github.com/IntelligenceModding/AdvancedPeripherals)**
-  - **Applied Energistics 2 (AE2)**
-
 ## Setup Instructions
 
-1. **Place a 3x3 Monitor**: 
+1. **Place a 3x2 Monitor**: 
    on an Advanced Computer. Ensure that the computer is connected to a **ME Bridge** from Applied Energistics 2 (AE2).
 
 2. **Download the Script**:
@@ -31,6 +24,13 @@ This is a simple ComputerCraft script that displays the used bytes on your Monit
      ```
 
 The script will now display the used bytes in your AE2 storage cells on the connected monitor.
+
+## Requirements
+not needed in ATM 10 Mod Pack (is has all neede Mods)
+- **Mods Required**: 
+  - **ComputerCraft**
+  - **[AdvancedPeripherals](https://github.com/IntelligenceModding/AdvancedPeripherals)**
+  - **Applied Energistics 2 (AE2)**
 
 ## Credits
 
