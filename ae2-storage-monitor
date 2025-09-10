@@ -36,7 +36,7 @@ function getGasStorage()
     local usedGases, maxGases = 0, 0
     local bridge = peripheral.find("me_bridge")
     if bridge then
-        usedGases = bridge.getUsedItemStorage()
+        usedGases = bridge.getTotalChemicalStorage()
         maxGases = bridge.getTotalChemicalStorage()
     end
     return usedGases, maxGases
