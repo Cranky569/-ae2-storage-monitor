@@ -25,8 +25,8 @@ function getFluidStorage()
     local usedFluids, maxFluids = 0, 0
     local bridge = peripheral.find("me_bridge")
     if bridge then
-        usedFluids = bridge.getUsedFluidStorage()
-        maxFluids = bridge.getTotalFluidStorage()
+        usedFluid = bridge.getUsedFluidStorage()
+        maxFluid = bridge.getTotalFluidStorage()
     end
     return usedFluids, maxFluids
 end
