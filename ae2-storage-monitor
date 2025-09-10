@@ -85,7 +85,7 @@ function updateDisplay()
         centerText(monitor, string.format("%.1f%% Used | %.1f%% Free", percentUsedFluids, percentFreeFluids), 7)
 
         -- Display gas storage
-        local usedGases, maxGases = getChemicalStorage()
+        local usedGases, maxGases = getTotalChemicalStorage()
         local freeGases = maxGases - usedGases
         local percentUsedGases = (maxGases > 0) and ((usedGases / maxGases) * 100) or 0
         local percentFreeGases = 100 - percentUsedGases
