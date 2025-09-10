@@ -32,7 +32,7 @@ function getFluidStorage()
 end
 
 -- Function to calculate free gas storage
-function getGasStorage()
+function getChemicalStorage()
     local usedGases, maxGases = 0, 0
     local bridge = peripheral.find("me_bridge")
     if bridge then
