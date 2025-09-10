@@ -36,7 +36,7 @@ function getGasStorage()
     local usedGases, maxGases = 0, 0
     local bridge = peripheral.find("me_bridge")
     if bridge then
-        local gases = bridge.listGas()
+        local gases = bridge.listGases()
         for _, gas in ipairs(gases) do
             usedGases = usedGases + (gas.bytes or 0)
         end
