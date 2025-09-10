@@ -12,7 +12,7 @@ end
 -- Function to calculate free item storage
 function getItemStorage()
     local usedItems, maxItems = 0, 0
-    local bridge = peripheral.find("meBridge")
+    local bridge = peripheral.find("me_bridge")
     if bridge then
         usedItems = bridge.getUsedItemStorage()
         maxItems = bridge.getTotalItemStorage()
@@ -23,7 +23,7 @@ end
 -- Function to calculate free fluid storage
 function getFluidStorage()
     local usedFluids, maxFluids = 0, 0
-    local bridge = peripheral.find("meBridge")
+    local bridge = peripheral.find("me_bridge")
     if bridge then
         usedFluids = bridge.getUsedFluidStorage()
         maxFluids = bridge.getTotalFluidStorage()
@@ -34,7 +34,7 @@ end
 -- Function to calculate free gas storage
 function getGasStorage()
     local usedGases, maxGases = 0, 0
-    local bridge = peripheral.find("meBridge")
+    local bridge = peripheral.find("me_bridge")
     if bridge then
         local gases = bridge.listGas()
         for _, gas in ipairs(gases) do
