@@ -27,10 +27,19 @@ function getFluidStorage()
     if bridge then
         usedFluid = bridge.getUsedFluidStorage()
         maxFluid = bridge.getTotalFluidStorage()
-        usedFluids = bridge.getUsedFluidStorage()
-        maxFluids = bridge.getTotalFluidStorage()
     end
     return usedFluids, maxFluids
+end
+
+-- Function to calculate free gas storage
+function getGasStorage()
+    local usedGases, maxGases = 0, 0
+    local bridge = peripheral.find("me_bridge")
+    if bridge then
+        usedGases = bridge.getUsedFluidStorage()
+        maxGases = bridge.getTotalFluidStorage()
+    end
+    return usedGases, maxGases
 end
 
 -- Function to center text on the monitor
