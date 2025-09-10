@@ -25,21 +25,20 @@ function getFluidStorage()
     local usedFluids, maxFluids = 0, 0
     local bridge = peripheral.find("me_bridge")
     if bridge then
-        usedFluids = bridge.getUsedFluidStorage()
-        maxFluids = bridge.getTotalFluidStorage()
+        usedFluids = bridge.getUsedFluidsStorage()
+        maxFluids = bridge.getTotalFluidsStorage()
     end
     return usedFluids, maxFluids
 end
 
 -- Function to calculate free gas storage
-function getGasStorage()
+function getGasesStorage()
     local usedGases, maxGases = 0, 0
     local bridge = peripheral.find("me_bridge")
     if bridge then
-        local gases = bridge.listGases()
-        for _, gas in ipairs(gases) do
-            usedGases = usedGases + (gas.bytes or 0)
-        end
+        usedGases = bridge.getUsedGasStorage()
+        maxGases = bridge.getTotalFluidsStorage()
+    end
         local cells = bridge.listCells()
         for _, cell in ipairs(cells) do
             if string.find(cell.item, "chemical_storage_cell") then
