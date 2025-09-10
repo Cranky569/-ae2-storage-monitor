@@ -31,6 +31,17 @@ function getFluidStorage()
     return usedFluids, maxFluids
 end
 
+-- Function to calculate free gas storage
+function getGasStorage()
+    local usedGases, maxGases = 0, 0
+    local bridge = peripheral.find("me_bridge")
+    if bridge then
+        usedGases = bridge.getUsedGasStorage()
+        maxGases = bridge.getTotalGasStorage()
+    end
+    return usedGases, maxGases
+end
+
 -- Function to center text on the monitor
 function centerText(monitor, text, line)
     local w, _ = monitor.getSize()
