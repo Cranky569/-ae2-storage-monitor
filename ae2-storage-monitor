@@ -1,5 +1,5 @@
--- me_bridge_chemical_cells.lua
--- Zeigt alle Chemical Cells auf dem Monitor mit Partition-Status
+-- me_bridge_all_cells.lua
+-- Zeigt alle Cells auf dem Monitor mit Partition-Status
 
 local mon = peripheral.find("monitor")
 local bridge = peripheral.find("me_bridge")
@@ -36,32 +36,30 @@ local function monPrint(text)
     cursorY = cursorY + 1
 end
 
-monPrint("=== CHEMICAL CELLS ===")
+monPrint("=== ME BRIDGE CELLS ===")
 
--- Alle Chemical Cells abrufen
+-- Alle Cells abrufen
 if bridge.getCells then
     local ok, cells = pcall(bridge.getCells, bridge)
     if ok and type(cells) == "table" then
         local index = 1
         for _, cell in ipairs(cells) do
             local ctype = cell.cellType or cell.type or cell["cell_type"] or "unknown"
-            if ctype == "chemical" then
-                local name = cell.item or cell.name or "nil"
-                local partitioned = cell.isPartitioned or cell.partitioned or false
-                local precise = cell.isPrecise or cell.precise or false
-                local includedPrecise = cell.isIncludedPrecise or cell.includePrecise or false
-                local excluded = cell.isExcluded or cell.excluded or false
+            local name = cell.item or cell.name or "nil"
+            local partitioned = cell.isPartitioned or cell.partitioned or false
+            local precise = cell.isPrecise or cell.precise or false
+            local includedPrecise = cell.isIncludedPrecise or cell.includePrecise or false
+            local excluded = cell.isExcluded or cell.excluded or false
 
-                monPrint(string.format("Cell #%d: %s", index, name))
-                monPrint(string.format("Flags: Partitioned=%s | Precise=%s | IncludedPrecise=%s | Excluded=%s",
-                    tostring(partitioned), tostring(precise), tostring(includedPrecise), tostring(excluded)
-                ))
-                monPrint("----------------------------")
-                index = index + 1
-            end
+            monPrint(string.format("Cell #%d: %s (Type=%s)", index, name, ctype))
+            monPrint(string.format("Flags: Partitioned=%s | Precise=%s | IncludedPrecise=%s | Excluded=%s",
+                tostring(partitioned), tostring(precise), tostring(includedPrecise), tostring(excluded)
+            ))
+            monPrint("----------------------------")
+            index = index + 1
         end
         if index == 1 then
-            monPrint("Keine Chemical Cells gefunden.")
+            monPrint("Keine Cells gefunden.")
         end
     else
         monPrint("Fehler beim Abrufen der Cells: " .. tostring(cells))
