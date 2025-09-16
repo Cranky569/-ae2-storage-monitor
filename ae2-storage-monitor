@@ -1,5 +1,5 @@
--- me_bridge_cells_monitor.lua
--- Zeigt alle Zellen der me_bridge mit allen verfügbaren Infos auf dem Monitor
+-- me_bridge_fluid_cells_monitor.lua
+-- Zeigt alle Fluid-Zellen der me_bridge auf dem Monitor und prüft Partitioned
 
 local mon = peripheral.find("monitor")
 local bridge = peripheral.find("me_bridge")
@@ -49,19 +49,21 @@ if not ok or type(cells) ~= "table" then
     return
 end
 
-monPrint("=== ME Bridge Zellen ===")
+monPrint("=== ME Bridge Fluid-Zellen ===")
 for i, cell in ipairs(cells) do
-    local item = cell.item or cell.name or "nil"
     local ctype = cell.cellType or cell.type or "nil"
-    local totalBytes = cell.totalBytes or 0
-    local bytesPerType = cell.bytesPerType or 0
-    local isPartitioned = cell.isPartitioned or false
-    local isPrecise = cell.isPrecise or false
+    if tostring(ctype) == "fluid" then
+        local item = cell.item or cell.name or "nil"
+        local totalBytes = cell.totalBytes or 0
+        local bytesPerType = cell.bytesPerType or 0
+        local isPartitioned = cell.isPartitioned or false
+        local isPrecise = cell.isPrecise or false
 
-    monPrint(string.format(
-        "Cell #%d: item=%s | type=%s | totalBytes=%s | bytesPerType=%s | Partitioned=%s | Precise=%s",
-        i, item, ctype, totalBytes, bytesPerType, tostring(isPartitioned), tostring(isPrecise)
-    ))
+        monPrint(string.format(
+            "Cell #%d: item=%s | totalBytes=%s | bytesPerType=%s | Partitioned=%s | Precise=%s",
+            i, item, totalBytes, bytesPerType, tostring(isPartitioned), tostring(isPrecise)
+        ))
+    end
 end
 
 monPrint("=== Ende ===")
