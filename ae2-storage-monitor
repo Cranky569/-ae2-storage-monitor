@@ -8,12 +8,14 @@ if not bridge then
     return
 end
 
-if type(bridge.listCells) ~= "function" then
+-- Prüfen ob listCells existiert
+if not bridge.listCells then
     print("Diese me_bridge unterstützt listCells() nicht!")
     return
 end
 
-local ok, cells = pcall(function() return bridge.listCells() end)
+-- Safe call auf listCells()
+local ok, cells = pcall(bridge.listCells, bridge)
 if not ok then
     print("Fehler bei listCells(): " .. tostring(cells))
     return
