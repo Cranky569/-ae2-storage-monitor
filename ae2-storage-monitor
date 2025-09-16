@@ -1,67 +1,66 @@
+-- me_bridge_cells_monitor.lua
+-- Zeigt alle Methoden der me_bridge, die "cell" enthalten, auf dem Monitor
 
--- Safe call wrapper
-local function safeCall(fn, ...)
-    if type(fn) ~= "function" then return false, 0 end
-    local ok, res = pcall(fn, ...)
-    if not ok then return false, 0 end
-    return true, res or 0
+local mon = peripheral.find("monitor")
+local bridge = peripheral.find("me_bridge")
+
+if not mon then
+    print("Kein Monitor gefunden!")
+    return
 end
 
--- Debug-Funktion: Free Fluids berechnen
-local function debugFreeFluids()
-    local bridge = peripheral.find("me_bridge")
-    if not bridge then
-        print("ME Bridge nicht gefunden!")
-        return
+if not bridge then
+    mon.clear()
+    mon.setCursorPos(1,1)
+    mon.write("Kein me_bridge gefunden!")
+    return
+end
+
+-- Monitor vorbereiten
+mon.clear()
+mon.setBackgroundColor(colors.black)
+mon.setTextColor(colors.white)
+mon.setTextScale(1)
+local w,h = mon.getSize()
+local cursorY = 1
+
+local function monPrint(text)
+    if cursorY > h then
+        mon.scroll(1)
+        cursorY = h
+        mon.setCursorPos(1,cursorY)
+        mon.clearLine()
     end
+    mon.setCursorPos(1,cursorY)
+    mon.write(text)
+    cursorY = cursorY + 1
+end
 
-    local freeFluids = 0
+-- Alle Methoden der Bridge auflisten
+local methods = peripheral.getMethods(peripheral.getName(bridge))
+monPrint("=== ME Bridge Methoden (Cells) ===")
+for _, m in ipairs(methods) do
+    if string.find(string.lower(m), "cell") then
+        monPrint("- " .. m)
+    end
+end
 
-    if type(bridge.getCells) == "function" then
-        local ok, cells = pcall(bridge.getCells, bridge)
-        if not ok or type(cells) ~= "table" then
-            print("Fehler beim Abfragen der Cells!")
-            return
-        end
-
-        for _, cell in pairs(cells) do
-            local ctype = cell.cellType or cell.type
-            local isPrecise = cell.isPrecise or false
-            local isPartitioned = cell.isPartitioned or false
-            local partitionType = cell.partitionType or "" -- "Included" oder "Excluded"
-
-            if tostring(ctype) == "fluid" then
-                local available = 0
-                if type(cell.getAvailableBytes) == "function" then
-                    local ok2, bytes = pcall(cell.getAvailableBytes, cell)
-                    if ok2 and bytes then
-                        available = bytes
-                    end
-                else
-                    local total = cell.totalBytes or 0
-                    local used = cell.usedBytes or 0
-                    available = total - used
-                end
-
-                -- Partition + Precise Logik: Partitioned + Included Precise ignorieren
-                if not (isPrecise and isPartitioned and partitionType == "Included") then
-                    freeFluids = freeFluids + available
-                end
-            end
+-- Optional: listCells() direkt ausgeben
+if bridge.listCells then
+    local ok, cells = pcall(bridge.listCells, bridge)
+    if ok and type(cells) == "table" then
+        monPrint("---- listCells() ----")
+        for i, cell in ipairs(cells) do
+            local item = cell.item or cell.name or "nil"
+            local ctype = cell.cellType or cell.type or "nil"
+            local totalBytes = cell.totalBytes or 0
+            monPrint(string.format("Cell #%d: item=%s | type=%s | totalBytes=%d", i, item, ctype, totalBytes))
         end
     else
-        -- Fallback
-        local ok, total = safeCall(bridge.getTotalFluidStorage)
-        if ok then
-            local _, used = safeCall(bridge.getUsedFluidStorage)
-            freeFluids = total - used
-        end
+        monPrint("listCells() Fehler: " .. tostring(cells))
     end
-
-    if freeFluids < 0 then freeFluids = 0 end
-
-    print("DEBUG: Free Fluids (ohne Partitioned+Included Precise) = " .. freeFluids)
+else
+    monPrint("listCells() nicht verfügbar")
 end
 
--- Test aufrufen
-debugFreeFluids()
+monPrint("=== Ende ===")
