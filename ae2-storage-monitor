@@ -1,5 +1,5 @@
--- me_bridge_fluid_storage_debug.lua
--- Zeigt alle Infos von getFluidStorage() auf dem Monitor, ohne Berechnung
+-- me_bridge_methods_debug.lua
+-- Zeigt auf dem Monitor alle Funktionen und Felder, die getChemicalStorage (und Co.) nutzen könnte
 
 local mon = peripheral.find("monitor")
 local bridge = peripheral.find("me_bridge")
@@ -35,19 +35,20 @@ local function monPrint(text)
     cursorY = cursorY + 1
 end
 
--- Fluid Storage abrufen
-local ok, usedFluids = pcall(bridge.getUsedFluidStorage, bridge)
-local ok2, maxFluids = pcall(bridge.getTotalFluidStorage, bridge)
-
-monPrint("=== Fluid Storage Debug ===")
-if ok then
-    monPrint("Used Fluid Storage: " .. tostring(usedFluids))
-else
-    monPrint("Fehler beim Abrufen von UsedFluidStorage: " .. tostring(usedFluids))
+-- Alle Methoden der Bridge auflisten
+monPrint("=== ME Bridge Methoden ===")
+local methods = peripheral.getMethods(peripheral.getName(bridge))
+for _, m in ipairs(methods) do
+    monPrint("- " .. m)
 end
 
-if ok2 then
-    monPrint("Total Fluid Storage: " .. tostring(maxFluids))
-else
-    monPrint("Fehler beim Abrufen von TotalFluidStorage: " .. tostring(maxFluids))
-end
+-- Zeige mögliche Felder/Infos, die getChemicalStorage nutzen könnte
+monPrint("=== Mögliche Felder für Chemical Storage ===")
+monPrint("- isPartitioned / partitioned")
+monPrint("- isPrecise / precise")
+monPrint("- isIncludedPrecise / includePrecise")
+monPrint("- isExcluded / excluded")
+monPrint("- totalBytes / bytes")
+monPrint("- cellType / type")
+monPrint("- item / name")
+
