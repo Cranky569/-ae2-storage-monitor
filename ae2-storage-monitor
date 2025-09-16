@@ -1,5 +1,5 @@
--- me_bridge_fluid_cells_monitor.lua
--- Zeigt alle Fluid-Zellen der me_bridge auf dem Monitor und prüft Partitioned
+-- fluid_storage_monitor.lua
+-- Zeigt Fluid Storage auf dem Monitor an und listet Partitioned / Precise Cells aus
 
 local mon = peripheral.find("monitor")
 local bridge = peripheral.find("me_bridge")
@@ -36,34 +36,84 @@ local function monPrint(text)
     cursorY = cursorY + 1
 end
 
--- Prüfen, ob getCells() verfügbar ist
-if type(bridge.getCells) ~= "function" then
-    monPrint("getCells() nicht verfügbar!")
-    return
-end
-
--- Alle Zellen abrufen
-local ok, cells = pcall(bridge.getCells, bridge)
-if not ok or type(cells) ~= "table" then
-    monPrint("Fehler beim Abrufen der Zellen: " .. tostring(cells))
-    return
-end
-
-monPrint("=== ME Bridge Fluid-Zellen ===")
-for i, cell in ipairs(cells) do
-    local ctype = cell.cellType or cell.type or "nil"
-    if tostring(ctype) == "fluid" then
-        local item = cell.item or cell.name or "nil"
-        local totalBytes = cell.totalBytes or 0
-        local bytesPerType = cell.bytesPerType or 0
-        local isPartitioned = cell.isPartitioned or false
-        local isPrecise = cell.isPrecise or false
-
-        monPrint(string.format(
-            "Cell #%d: item=%s | totalBytes=%s | bytesPerType=%s | Partitioned=%s | Precise=%s",
-            i, item, totalBytes, bytesPerType, tostring(isPartitioned), tostring(isPrecise)
-        ))
+-- Format helper
+local function formatBytes(bytes)
+    bytes = bytes or 0
+    if bytes >= 1000000 then
+        return string.format("%.1fM", bytes / 1000000)
+    elseif bytes >= 1000 then
+        return string.format("%.1fK", bytes / 1000)
+    else
+        return tostring(bytes)
     end
 end
 
-monPrint("=== Ende ===")
+-- Fluid Storage berechnen (verwendet getUsedFluidStorage / getTotalFluidStorage)
+local function getFluidStorage()
+    local usedFluids, maxFluids = 0, 0
+    local bridge = peripheral.find("me_bridge")
+    if bridge then
+        usedFluids = bridge.getUsedFluidStorage()
+        maxFluids = bridge.getTotalFluidStorage()
+    end
+    return usedFluids, maxFluids
+end
+
+-- Zellen abrufen und Partitionen prüfen
+local function printFluidCells()
+    if type(bridge.getCells) ~= "function" then
+        monPrint("getCells() nicht verfügbar!")
+        return
+    end
+
+    local ok, cells = pcall(bridge.getCells, bridge)
+    if not ok or type(cells) ~= "table" then
+        monPrint("Fehler beim Abrufen der Zellen: " .. tostring(cells))
+        return
+    end
+
+    monPrint("=== Fluid-Zellen Details ===")
+    for i, cell in ipairs(cells) do
+        local ctype = cell.cellType or cell.type or "nil"
+        if tostring(ctype) == "fluid" then
+            local item = cell.item or cell.name or "nil"
+            local totalBytes = cell.totalBytes or 0
+            local bytesPerType = cell.bytesPerType or 0
+            local isPartitioned = cell.isPartitioned or false
+            local isPrecise = cell.isPrecise or false
+
+            monPrint(string.format(
+                "Cell #%d: item=%s | totalBytes=%s | bytesPerType=%s | Partitioned=%s | Precise=%s",
+                i, item, totalBytes, bytesPerType, tostring(isPartitioned), tostring(isPrecise)
+            ))
+        end
+    end
+end
+
+-- Main Loop
+while true do
+    mon.clear()
+    cursorY = 1
+
+    local used, total = getFluidStorage()
+    local free = total - used
+    if free < 0 then free = 0 end
+    local percentUsed = (total > 0) and ((used / total) * 100) or 0
+    local percentFree = 100 - percentUsed
+
+    mon.setTextColor(colors.cyan)
+    mon.setCursorPos(1, cursorY)
+    mon.write("=== Fluid Storage ===")
+    cursorY = cursorY + 1
+    mon.setCursorPos(1, cursorY)
+    mon.write(string.format("Used: %s | Free: %s", formatBytes(used), formatBytes(free)))
+    cursorY = cursorY + 1
+    mon.setCursorPos(1, cursorY)
+    mon.write(string.format("%.1f%% Used | %.1f%% Free", percentUsed, percentFree))
+    cursorY = cursorY + 2
+
+    -- Fluid Zellen Details anzeigen
+    printFluidCells()
+
+    sleep(5)
+end
