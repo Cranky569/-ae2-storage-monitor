@@ -58,7 +58,7 @@ function updateDisplay()
         return
     end
 
-    monitor.setTextScale(1)
+    monitor.setTextScale(2) -- Textgröße auf 2 gesetzt
     monitor.clear()
 
     while true do
