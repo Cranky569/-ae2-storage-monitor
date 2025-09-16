@@ -1,5 +1,5 @@
--- me_bridge_methods_debug.lua
--- Zeigt auf dem Monitor alle Funktionen und Felder, die getChemicalStorage (und Co.) nutzen könnte
+-- me_bridge_chemical_debug.lua
+-- Zeigt auf dem Monitor alle Methoden und Felder, die getAvailableChemicalStorage (oder ähnliche) nutzen könnte
 
 local mon = peripheral.find("monitor")
 local bridge = peripheral.find("me_bridge")
@@ -16,6 +16,7 @@ if not bridge then
     return
 end
 
+-- Monitor vorbereiten
 mon.clear()
 mon.setBackgroundColor(colors.black)
 mon.setTextColor(colors.white)
@@ -35,15 +36,17 @@ local function monPrint(text)
     cursorY = cursorY + 1
 end
 
--- Alle Methoden der Bridge auflisten
-monPrint("=== ME Bridge Methoden ===")
+-- Nur Methoden, die getChemicalStorage oder ähnliches enthalten
+monPrint("=== ME Bridge Methoden für Chemical Storage ===")
 local methods = peripheral.getMethods(peripheral.getName(bridge))
 for _, m in ipairs(methods) do
-    monPrint("- " .. m)
+    if string.find(string.lower(m), "chemical") or string.find(string.lower(m), "get") then
+        monPrint("- " .. m)
+    end
 end
 
--- Zeige mögliche Felder/Infos, die getChemicalStorage nutzen könnte
-monPrint("=== Mögliche Felder für Chemical Storage ===")
+-- Mögliche Felder, die getAvailableChemicalStorage nutzen könnte
+monPrint("=== Mögliche Felder für getAvailableChemicalStorage ===")
 monPrint("- isPartitioned / partitioned")
 monPrint("- isPrecise / precise")
 monPrint("- isIncludedPrecise / includePrecise")
@@ -51,4 +54,3 @@ monPrint("- isExcluded / excluded")
 monPrint("- totalBytes / bytes")
 monPrint("- cellType / type")
 monPrint("- item / name")
-
