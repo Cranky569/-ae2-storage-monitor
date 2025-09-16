@@ -52,12 +52,12 @@ end
 -- Funktion: Zellen abrufen und berechnen
 local function processCells(cellType)
     local usedTotal, freeTotal = 0, 0
-    if not bridge.listCells then
-        monPrint(cellType .. ": listCells() nicht verfügbar")
+    if type(bridge.getCells) ~= "function" then
+        monPrint(cellType .. ": getCells() nicht verfügbar")
         return
     end
 
-    local ok, cells = pcall(bridge.listCells, bridge)
+    local ok, cells = pcall(bridge.getCells, bridge)
     if not ok or type(cells) ~= "table" then
         monPrint(cellType .. ": Fehler beim Abrufen der Cells")
         return
@@ -88,8 +88,6 @@ local function processCells(cellType)
         end
     end
 
-    local usedPerc = (usedTotal > 0) and (usedTotal / usedTotal * 100) or 0
-    local freePerc = (usedTotal > 0) and (freeTotal / usedTotal * 100) or 0
     monPrint(string.format("Used %s | Free %s", formatBytes(usedTotal), formatBytes(freeTotal)))
     monPrint("---------------------------")
 end
