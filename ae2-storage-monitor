@@ -1,13 +1,3 @@
--- Funktion zum Formatieren großer Zahlen
-function formatBytes(bytes)
-    if bytes >= 1000000 then
-        return string.format("%.1fM", bytes / 1000000)
-    elseif bytes >= 1000 then
-        return string.format("%.1fK", bytes / 1000)
-    else
-        return tostring(bytes)
-    end
-end
 
 -- Safe call wrapper
 local function safeCall(fn, ...)
@@ -17,91 +7,61 @@ local function safeCall(fn, ...)
     return true, res or 0
 end
 
--- Berechnung Used + Free für Fluids (Free ohne Included Precise)
-function getFluidStorage()
+-- Debug-Funktion: Free Fluids berechnen
+local function debugFreeFluids()
     local bridge = peripheral.find("me_bridge")
-    if not bridge then return 0, 0 end
-
-    -- Used komplett
-    local _, usedFluids = safeCall(bridge.getUsedFluidStorage)
+    if not bridge then
+        print("ME Bridge nicht gefunden!")
+        return
+    end
 
     local freeFluids = 0
+
     if type(bridge.getCells) == "function" then
         local ok, cells = pcall(bridge.getCells, bridge)
-        if ok and type(cells) == "table" then
-            for _, cell in pairs(cells) do
-                local ctype = cell.cellType or cell.type
-                local isPrecise = cell.isPrecise or false
-                local isPartitioned = cell.isPartitioned or false
-                local partitionType = cell.partitionType or "" -- "Included" oder "Excluded"
+        if not ok or type(cells) ~= "table" then
+            print("Fehler beim Abfragen der Cells!")
+            return
+        end
 
-                if tostring(ctype) == "fluid" then
-                    local available = 0
-                    if type(cell.getAvailableBytes) == "function" then
-                        local ok2, bytes = pcall(cell.getAvailableBytes, cell)
-                        if ok2 and bytes then
-                            available = bytes
-                        end
-                    else
-                        -- Fallback
-                        local total = cell.totalBytes or 0
-                        local used = cell.usedBytes or 0
-                        available = total - used
-                    end
+        for _, cell in pairs(cells) do
+            local ctype = cell.cellType or cell.type
+            local isPrecise = cell.isPrecise or false
+            local isPartitioned = cell.isPartitioned or false
+            local partitionType = cell.partitionType or "" -- "Included" oder "Excluded"
 
-                    -- Partition + Precise Logik
-                    if not (isPrecise and isPartitioned and partitionType == "Included") then
-                        freeFluids = freeFluids + available
+            if tostring(ctype) == "fluid" then
+                local available = 0
+                if type(cell.getAvailableBytes) == "function" then
+                    local ok2, bytes = pcall(cell.getAvailableBytes, cell)
+                    if ok2 and bytes then
+                        available = bytes
                     end
+                else
+                    local total = cell.totalBytes or 0
+                    local used = cell.usedBytes or 0
+                    available = total - used
+                end
+
+                -- Partition + Precise Logik: Partitioned + Included Precise ignorieren
+                if not (isPrecise and isPartitioned and partitionType == "Included") then
+                    freeFluids = freeFluids + available
                 end
             end
         end
     else
         -- Fallback
         local ok, total = safeCall(bridge.getTotalFluidStorage)
-        if ok then freeFluids = total - usedFluids end
+        if ok then
+            local _, used = safeCall(bridge.getUsedFluidStorage)
+            freeFluids = total - used
+        end
     end
 
     if freeFluids < 0 then freeFluids = 0 end
-    return usedFluids, freeFluids
+
+    print("DEBUG: Free Fluids (ohne Partitioned+Included Precise) = " .. freeFluids)
 end
 
--- Funktion zum Zentrieren von Text
-local function centerText(monitor, text, line)
-    local w, _ = monitor.getSize()
-    local x = math.floor((w - #text) / 2) + 1
-    if x < 1 then x = 1 end
-    monitor.setCursorPos(x, line)
-    monitor.write(text)
-end
-
--- Hauptanzeige für Fluids
-function updateFluidMonitor()
-    local monitor = peripheral.find("monitor")
-    if not monitor then
-        print("Monitor nicht gefunden!")
-        return
-    end
-
-    monitor.setTextScale(1)
-    monitor.clear()
-
-    while true do
-        monitor.clear()
-
-        local used, free = getFluidStorage()
-        local total = used + free
-        local percentUsed = (total > 0) and (used / total * 100) or 0
-        local percentFree = 100 - percentUsed
-
-        monitor.setTextColor(colors.cyan)
-        centerText(monitor, "Fluid Storage", 1)
-        centerText(monitor, string.format("Used: %s | Free: %s", formatBytes(used), formatBytes(free)), 2)
-        centerText(monitor, string.format("Total: %s | %.1f%% Used | %.1f%% Free", formatBytes(total), percentUsed, percentFree), 3)
-
-        sleep(5)
-    end
-end
-
--- Start
-updateFluidMonitor()
+-- Test aufrufen
+debugFreeFluids()
