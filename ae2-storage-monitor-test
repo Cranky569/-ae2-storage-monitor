@@ -42,21 +42,14 @@ local function getChemicalStorage()
     return used, max
 end
 
--- Funktion zur Berechnung der Anzahl der Zellen pro Typ
-local function getDriveCells()
+-- Funktion zur Ermittlung der Anzahl der Drives
+local function getDriveCount()
     local bridge = peripheral.find("me_bridge")
-    local fluidCells, chemicalCells = 0, 0
     if bridge then
-        local cells = bridge.listCells()
-        for _, cell in pairs(cells) do
-            if cell.type == "fluid" then
-                fluidCells = fluidCells + 1
-            elseif cell.type == "chemical" then
-                chemicalCells = chemicalCells + 1
-            end
-        end
+        local drives = bridge.listCells() -- listCells() liefert alle Zellen, die Drives repräsentieren
+        return #drives
     end
-    return fluidCells, chemicalCells
+    return 0
 end
 
 -- Funktion zum Zentrieren von Text auf dem Monitor
@@ -71,7 +64,7 @@ end
 local function updateDisplay()
     local monitor = peripheral.find("monitor")
     if not monitor then
-        error("Kein Monitor gefunden! Bitte sicherstellen, dass ein Monitor angeschlossen ist.")
+        error("No monitor found! Make sure a monitor is connected.")
     end
 
     monitor.setTextScale(2)
@@ -80,12 +73,12 @@ local function updateDisplay()
     while true do
         monitor.clear()
 
-        -- Anzahl der Zellen
-        local fluidCells, chemicalCells = getDriveCells()
-        centerText(monitor, "Drives: " .. (fluidCells + chemicalCells), 1)
-        monitor.setCursorPos(1, 2) -- leere Zeile
+        -- Zeile 1: Anzahl der Drives
+        local driveCount = getDriveCount()
+        centerText(monitor, "Drives: " .. driveCount, 1)
+        monitor.setCursorPos(1, 2) -- Zeile 2 leer
 
-        -- Item-Speicher
+        -- Item Storage
         local usedItems, maxItems = getItemStorage()
         local freeItems = maxItems - usedItems
         local percentUsedItems = (maxItems > 0) and ((usedItems / maxItems) * 100) or 0
@@ -95,7 +88,7 @@ local function updateDisplay()
         centerText(monitor, string.format("Used: %s | Free: %s", formatBytes(usedItems), formatBytes(freeItems)), 4)
         centerText(monitor, string.format("%.1f%% Used | %.1f%% Free", percentUsedItems, percentFreeItems), 5)
 
-        -- Fluid-Speicher
+        -- Fluid Storage
         local usedFluids, maxFluids = getFluidStorage()
         local freeFluids = maxFluids - usedFluids
         local percentUsedFluids = (maxFluids > 0) and ((usedFluids / maxFluids) * 100) or 0
@@ -105,7 +98,7 @@ local function updateDisplay()
         centerText(monitor, string.format("Used: %s | Free: %s", formatBytes(usedFluids), formatBytes(freeFluids)), 8)
         centerText(monitor, string.format("%.1f%% Used | %.1f%% Free", percentUsedFluids, percentFreeFluids), 9)
 
-        -- Chemical/Gas-Speicher
+        -- Chemical/Gas Storage
         local usedGases, maxGases = getChemicalStorage()
         local freeGases = maxGases - usedGases
         local percentUsedGases = (maxGases > 0) and ((usedGases / maxGases) * 100) or 0
@@ -115,9 +108,9 @@ local function updateDisplay()
         centerText(monitor, string.format("Used: %s | Free: %s", formatBytes(usedGases), formatBytes(freeGases)), 12)
         centerText(monitor, string.format("%.1f%% Used | %.1f%% Free", percentUsedGases, percentFreeGases), 13)
 
-        sleep(5) -- Alle 5 Sekunden aktualisieren
+        sleep(5) -- Refresh alle 5 Sekunden
     end
 end
 
--- Starte das Anzeigeprogramm
+-- Start des Anzeigeprogramms
 updateDisplay()
