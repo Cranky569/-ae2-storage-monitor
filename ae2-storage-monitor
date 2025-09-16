@@ -57,10 +57,10 @@ if bridge.getTotalChemicalStorage then
 end
 
 -- Zellen prüfen
+local chemicalCells = {}
 if bridge.getCells then
     local ok, cells = pcall(bridge.getCells, bridge)
     if ok and type(cells) == "table" then
-        monPrint("=== CHEMICAL CELLS ===")
         for i, cell in ipairs(cells) do
             local ctype = cell.cellType or cell.type or cell["cell_type"] or "unknown"
             if ctype == "chemical" then
@@ -77,11 +77,14 @@ if bridge.getCells then
                     if freeChem < 0 then freeChem = 0 end
                 end
 
-                monPrint(string.format(
-                    "Cell #%d: name=%s | totalBytes=%s | Partitioned=%s | Precise=%s | IncludedPrecise=%s | Excluded=%s",
-                    i, item, formatBytes(totalBytes), tostring(partitioned), tostring(precise),
-                    tostring(includedPrecise), tostring(excluded)
-                ))
+                table.insert(chemicalCells, {
+                    item=item,
+                    totalBytes=totalBytes,
+                    partitioned=partitioned,
+                    precise=precise,
+                    includedPrecise=includedPrecise,
+                    excluded=excluded
+                })
             end
         end
     else
@@ -90,6 +93,19 @@ if bridge.getCells then
 end
 
 -- Ergebnisse auf dem Monitor anzeigen
-monPrint("----------------------------")
+monPrint("=== CHEMICAL STORAGE ===")
 monPrint(string.format("Used Chemicals: %s", formatBytes(usedChem)))
 monPrint(string.format("Free Chemicals: %s", formatBytes(freeChem)))
+monPrint("----------------------------")
+
+-- Visualisierung der Flags für jede Cell
+for i, cell in ipairs(chemicalCells) do
+    monPrint(string.format("Cell #%d: %s (%s bytes)", i, cell.item, formatBytes(cell.totalBytes)))
+    local flags = ""
+    flags = flags .. (cell.partitioned and "[Partitioned] " or "")
+    flags = flags .. (cell.precise and "[Precise] " or "")
+    flags = flags .. (cell.includedPrecise and "[IncludedPrecise] " or "")
+    flags = flags .. (cell.excluded and "[Excluded] " or "")
+    monPrint("Flags: " .. (flags ~= "" and flags or "None"))
+    monPrint("----------------------------")
+end
