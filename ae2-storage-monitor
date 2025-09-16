@@ -1,6 +1,6 @@
--- me_bridge_cells_monitor.lua
--- Zeigt alle Cells der me_bridge auf dem Monitor an inkl. Partitioned/Precise
--- Included Precise wird nicht zum Free Storage gezählt
+-- me_bridge_fluids_chemicals_monitor.lua
+-- Zeigt Fluid- und Chemical-Cells der me_bridge auf dem Monitor an
+-- Included Precise wird nicht zu Free Storage gezählt
 
 local mon = peripheral.find("monitor")
 local bridge = peripheral.find("me_bridge")
@@ -57,12 +57,11 @@ if not ok or type(cells) ~= "table" then
 end
 
 -- Werte für Storage
-local usedItemBytes, freeItemBytes = 0, 0
 local usedFluidBytes, freeFluidBytes = 0, 0
 local usedChemicalBytes, freeChemicalBytes = 0, 0
 
 -- Cells auflisten
-monPrint("=== ME Bridge Cells ===")
+monPrint("=== ME Bridge Fluid & Chemical Cells ===")
 for i, cell in ipairs(cells) do
     local item = cell.item or cell.name or "unknown"
     local ctype = cell.cellType or cell.type or cell["cell_type"] or "unknown"
@@ -70,34 +69,30 @@ for i, cell in ipairs(cells) do
     local partitioned = cell.isPartitioned or cell.partitioned or false
     local precise = cell.isPrecise or cell.precise or false
 
-    -- Ausgabe auf Monitor
-    monPrint(string.format(
-        "Cell #%d: name=%s | type=%s | totalBytes=%s | Partitioned=%s | Precise=%s",
-        i, item, tostring(ctype), formatBytes(totalBytes), tostring(partitioned), tostring(precise)
-    ))
+    if ctype == "fluid" or ctype == "chemical" then
+        -- Ausgabe auf Monitor
+        monPrint(string.format(
+            "Cell #%d: name=%s | type=%s | totalBytes=%s | Partitioned=%s | Precise=%s",
+            i, item, tostring(ctype), formatBytes(totalBytes), tostring(partitioned), tostring(precise)
+        ))
 
-    -- Berechnung Free/Used
-    if ctype == "item" then
-        usedItemBytes = usedItemBytes + totalBytes
-        if not (partitioned and precise) then
-            freeItemBytes = freeItemBytes + totalBytes
-        end
-    elseif ctype == "fluid" then
-        usedFluidBytes = usedFluidBytes + totalBytes
-        if not (partitioned and precise) then
-            freeFluidBytes = freeFluidBytes + totalBytes
-        end
-    elseif ctype == "chemical" then
-        usedChemicalBytes = usedChemicalBytes + totalBytes
-        if not (partitioned and precise) then
-            freeChemicalBytes = freeChemicalBytes + totalBytes
+        -- Berechnung Free/Used
+        if ctype == "fluid" then
+            usedFluidBytes = usedFluidBytes + totalBytes
+            if not (partitioned and precise) then
+                freeFluidBytes = freeFluidBytes + totalBytes
+            end
+        elseif ctype == "chemical" then
+            usedChemicalBytes = usedChemicalBytes + totalBytes
+            if not (partitioned and precise) then
+                freeChemicalBytes = freeChemicalBytes + totalBytes
+            end
         end
     end
 end
 
 -- Zusammenfassung
 monPrint("")
-monPrint(string.format("Item Storage: Used=%s | Free=%s", formatBytes(usedItemBytes), formatBytes(freeItemBytes)))
 monPrint(string.format("Fluid Storage: Used=%s | Free=%s", formatBytes(usedFluidBytes), formatBytes(freeFluidBytes)))
 monPrint(string.format("Chemical Storage: Used=%s | Free=%s", formatBytes(usedChemicalBytes), formatBytes(freeChemicalBytes)))
 monPrint("=== Ende ===")
