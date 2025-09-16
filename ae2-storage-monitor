@@ -2,6 +2,7 @@
 -- Zeigt Fluid und Chemical Storage auf dem Monitor an
 -- Partitioned + Precise Zellen werden korrekt vom Free Storage abgezogen
 -- Included Precise Zellen werden NICHT vom Free Storage abgezogen
+-- Unter Chemical Storage wird zusätzlich angezeigt, wie Partitioned geprüft wird
 
 local function formatBytes(bytes)
     if bytes >= 1000000 then
@@ -126,7 +127,23 @@ while true do
     local usedGases, freeGases = processStorage("chemical")
     local percentUsedC = (freeGases + usedGases > 0) and (usedGases / (freeGases + usedGases) * 100) or 0
     centerText("Chemical Storage", cursorY); cursorY = cursorY + 1
-    centerText(string.format("Used: %s | Free: %s", formatBytes(usedGases), formatBytes(freeGases)), cursorY); cursorY = cursorY + 2
+    centerText(string.format("Used: %s | Free: %s", formatBytes(usedGases), formatBytes(freeGases)), cursorY); cursorY = cursorY + 1
+
+    -- Zusatzinfos unter Chemical Storage
+    local bridge = peripheral.find("me_bridge")
+    if bridge then
+        monPrint("=== Partition-Prüfung Info ===")
+        monPrint("Alle Methoden der Bridge mit 'cell' enthalten:")
+        local methods = peripheral.getMethods(peripheral.getName(bridge))
+        for _, m in ipairs(methods) do
+            if string.find(string.lower(m), "cell") then
+                monPrint("- " .. m)
+            end
+        end
+        monPrint("Partitioned wird über: cell.isPartitioned (oder cell.partitioned) geprüft")
+        monPrint("Precise wird über: cell.isPrecise (oder cell.precise) geprüft")
+        monPrint("IncludedPrecise wird über: cell.isIncludedPrecise (oder cell.includePrecise) geprüft")
+    end
 
     sleep(5)
 end
