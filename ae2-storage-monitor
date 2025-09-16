@@ -1,8 +1,45 @@
--- me_bridge_storage_monitor.lua
--- Zeigt Item, Fluid und Chemical Storage auf dem Monitor an
--- Partitioned + Precise Zellen werden korrekt vom Free Storage abgezogen
+-- me_bridge_cells_monitor.lua
+-- Zeigt alle Cells der me_bridge auf dem Monitor an inkl. Partitioned/Precise
+-- Included Precise wird nicht zum Free Storage gezählt
 
+local mon = peripheral.find("monitor")
+local bridge = peripheral.find("me_bridge")
+
+if not mon then
+    print("Kein Monitor gefunden!")
+    return
+end
+
+if not bridge then
+    mon.clear()
+    mon.setCursorPos(1,1)
+    mon.write("Kein me_bridge gefunden!")
+    return
+end
+
+-- Monitor vorbereiten
+mon.clear()
+mon.setBackgroundColor(colors.black)
+mon.setTextColor(colors.white)
+mon.setTextScale(1)
+local w,h = mon.getSize()
+local cursorY = 1
+
+local function monPrint(text)
+    if cursorY > h then
+        mon.scroll(1)
+        cursorY = h
+        mon.setCursorPos(1,cursorY)
+        mon.clearLine()
+    end
+    mon.setCursorPos(1,cursorY)
+    mon.write(text)
+    cursorY = cursorY + 1
+end
+
+-- Hilfsfunktion: Bytes formatieren
 local function formatBytes(bytes)
+    bytes = bytes or 0
     if bytes >= 1000000 then
         return string.format("%.1fM", bytes / 1000000)
     elseif bytes >= 1000 then
@@ -12,121 +49,55 @@ local function formatBytes(bytes)
     end
 end
 
-local function safeCall(fn, ...)
-    if type(fn) ~= "function" then return false, nil end
-    local ok, res = pcall(fn, ...)
-    if not ok then return false, res end
-    return true, res
-end
-
--- Monitor vorbereiten
-local mon = peripheral.find("monitor")
-if not mon then
-    print("Kein Monitor gefunden!")
+-- Alle Cells abrufen
+local ok, cells = pcall(function() return bridge.getCells() end)
+if not ok or type(cells) ~= "table" then
+    monPrint("Fehler: getCells() konnte nicht aufgerufen werden oder lieferte keine Tabelle")
     return
 end
 
-mon.clear()
-mon.setBackgroundColor(colors.black)
-mon.setTextColor(colors.white)
-mon.setTextScale(1)
-local w, h = mon.getSize()
-local cursorY = 1
+-- Werte für Storage
+local usedItemBytes, freeItemBytes = 0, 0
+local usedFluidBytes, freeFluidBytes = 0, 0
+local usedChemicalBytes, freeChemicalBytes = 0, 0
 
-local function monPrint(text)
-    if cursorY > h then
-        mon.scroll(1)
-        cursorY = h
-        mon.setCursorPos(1, cursorY)
-        mon.clearLine()
-    end
-    mon.setCursorPos(1, cursorY)
-    mon.write(text)
-    cursorY = cursorY + 1
-end
+-- Cells auflisten
+monPrint("=== ME Bridge Cells ===")
+for i, cell in ipairs(cells) do
+    local item = cell.item or cell.name or "unknown"
+    local ctype = cell.cellType or cell.type or cell["cell_type"] or "unknown"
+    local totalBytes = cell.totalBytes or cell.bytes or cell["total_bytes"] or 0
+    local partitioned = cell.isPartitioned or cell.partitioned or false
+    local precise = cell.isPrecise or cell.precise or false
 
-local function processStorage(cellType)
-    local bridge = peripheral.find("me_bridge")
-    if not bridge then
-        monPrint("Kein me_bridge gefunden!")
-        return 0, 0
-    end
+    -- Ausgabe auf Monitor
+    monPrint(string.format(
+        "Cell #%d: name=%s | type=%s | totalBytes=%s | Partitioned=%s | Precise=%s",
+        i, item, tostring(ctype), formatBytes(totalBytes), tostring(partitioned), tostring(precise)
+    ))
 
-    local usedTotal, freeTotal = 0, 0
-    local usedFn, totalFn
-    if cellType == "item" then
-        usedFn, totalFn = bridge.getUsedItemStorage, bridge.getTotalItemStorage
-    elseif cellType == "fluid" then
-        usedFn, totalFn = bridge.getUsedFluidStorage, bridge.getTotalFluidStorage
-    elseif cellType == "chemical" then
-        usedFn, totalFn = bridge.getUsedChemicalStorage, bridge.getTotalChemicalStorage
-    end
-
-    local okUsed, used = safeCall(usedFn, bridge)
-    local okTotal, total = safeCall(totalFn, bridge)
-    usedTotal = okUsed and used or 0
-    freeTotal = okTotal and total or 0
-
-    -- Zellen durchgehen
-    if type(bridge.getCells) == "function" then
-        local okCells, cells = pcall(bridge.getCells, bridge)
-        if okCells and type(cells) == "table" then
-            monPrint("=== " .. string.upper(cellType) .. " Cells ===")
-            for i, cell in ipairs(cells) do
-                local ctype = cell.cellType or cell.type or cell["cell_type"] or "nil"
-                if ctype == cellType then
-                    local item = cell.item or cell.name or "nil"
-                    local totalBytes = cell.totalBytes or cell.bytes or 0
-                    local partitioned = cell.isPartitioned or cell.partitioned or false
-                    local precise = cell.isPrecise or cell.precise or false
-
-                    -- Nur vom Free abziehen, wenn Partitioned AND Precise
-                    if partitioned == true and precise == true then
-                        freeTotal = freeTotal - totalBytes
-                        if freeTotal < 0 then freeTotal = 0 end
-                    end
-
-                    monPrint(string.format(
-                        "Cell #%d: item=%s | totalBytes=%s | Partitioned=%s | Precise=%s",
-                        i, item, formatBytes(totalBytes), tostring(partitioned), tostring(precise)
-                    ))
-                end
-            end
+    -- Berechnung Free/Used
+    if ctype == "item" then
+        usedItemBytes = usedItemBytes + totalBytes
+        if not (partitioned and precise) then
+            freeItemBytes = freeItemBytes + totalBytes
+        end
+    elseif ctype == "fluid" then
+        usedFluidBytes = usedFluidBytes + totalBytes
+        if not (partitioned and precise) then
+            freeFluidBytes = freeFluidBytes + totalBytes
+        end
+    elseif ctype == "chemical" then
+        usedChemicalBytes = usedChemicalBytes + totalBytes
+        if not (partitioned and precise) then
+            freeChemicalBytes = freeChemicalBytes + totalBytes
         end
     end
-
-    return usedTotal, freeTotal
 end
 
-local function centerText(text, line)
-    local x = math.floor((w - #text) / 2) + 1
-    if x < 1 then x = 1 end
-    mon.setCursorPos(x, line)
-    mon.write(text)
-end
-
--- Main Loop
-while true do
-    mon.clear()
-    cursorY = 1
-
-    local usedItems, freeItems = processStorage("item")
-    local percentUsed = (freeItems + usedItems > 0) and (usedItems / (freeItems + usedItems) * 100) or 0
-    centerText("Item Storage", cursorY); cursorY = cursorY + 1
-    centerText(string.format("Used: %s | Free: %s", formatBytes(usedItems), formatBytes(freeItems)), cursorY); cursorY = cursorY + 1
-    centerText(string.format("%.1f%% Used", percentUsed), cursorY); cursorY = cursorY + 2
-
-    local usedFluids, freeFluids = processStorage("fluid")
-    local percentUsedF = (freeFluids + usedFluids > 0) and (usedFluids / (freeFluids + usedFluids) * 100) or 0
-    centerText("Fluid Storage", cursorY); cursorY = cursorY + 1
-    centerText(string.format("Used: %s | Free: %s", formatBytes(usedFluids), formatBytes(freeFluids)), cursorY); cursorY = cursorY + 1
-    centerText(string.format("%.1f%% Used", percentUsedF), cursorY); cursorY = cursorY + 2
-
-    local usedGases, freeGases = processStorage("chemical")
-    local percentUsedC = (freeGases + usedGases > 0) and (usedGases / (freeGases + usedGases) * 100) or 0
-    centerText("Chemical Storage", cursorY); cursorY = cursorY + 1
-    centerText(string.format("Used: %s | Free: %s", formatBytes(usedGases), formatBytes(freeGases)), cursorY); cursorY = cursorY + 1
-    centerText(string.format("%.1f%% Used", percentUsedC), cursorY); cursorY = cursorY + 1
-
-    sleep(5)
-end
+-- Zusammenfassung
+monPrint("")
+monPrint(string.format("Item Storage: Used=%s | Free=%s", formatBytes(usedItemBytes), formatBytes(freeItemBytes)))
+monPrint(string.format("Fluid Storage: Used=%s | Free=%s", formatBytes(usedFluidBytes), formatBytes(freeFluidBytes)))
+monPrint(string.format("Chemical Storage: Used=%s | Free=%s", formatBytes(usedChemicalBytes), formatBytes(freeChemicalBytes)))
+monPrint("=== Ende ===")
