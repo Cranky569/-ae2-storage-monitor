@@ -1,70 +1,69 @@
--- Function to format large numbers into a human-readable format
-function formatBytes(bytes)
-    if bytes >= 1000000 then
-        return string.format("%.1fM", bytes / 1000000)
-    elseif bytes >= 1000 then
-        return string.format("%.1fK", bytes / 1000)
+-- Function to format large numbers
+local function formatBytes(bytes)
+    if bytes >= 1e6 then
+        return string.format("%.1fM", bytes / 1e6)
+    elseif bytes >= 1e3 then
+        return string.format("%.1fK", bytes / 1e3)
     else
         return tostring(bytes)
     end
 end
 
 -- Function to calculate free item storage
-function getItemStorage()
-    local usedItems, maxItems = 0, 0
+local function getItemStorage()
+    local used, max = 0, 0
     local bridge = peripheral.find("me_bridge")
     if bridge then
-        usedItems = bridge.getUsedItemStorage()
-        maxItems = bridge.getTotalItemStorage()
+        used = bridge.getUsedItemStorage()
+        max = bridge.getTotalItemStorage()
     end
-    return usedItems, maxItems
+    return used, max
 end
 
 -- Function to calculate free fluid storage
-function getFluidStorage()
-    local usedFluids, maxFluids = 0, 0
+local function getFluidStorage()
+    local used, max = 0, 0
     local bridge = peripheral.find("me_bridge")
     if bridge then
-        usedFluids = bridge.getUsedFluidStorage()
-        maxFluids = bridge.getTotalFluidStorage()
+        used = bridge.getUsedFluidStorage()
+        max = bridge.getTotalFluidStorage()
     end
-    return usedFluids, maxFluids
+    return used, max
 end
 
--- Function to calculate free gas storage
-function getChemicalStorage()
-    local usedGases, maxGases = 0, 0
+-- Function to calculate free chemical/gas storage
+local function getChemicalStorage()
+    local used, max = 0, 0
     local bridge = peripheral.find("me_bridge")
     if bridge then
-        usedGases = bridge.getUsedChemicalStorage()
-        maxGases = bridge.getTotalChemicalStorage()
+        used = bridge.getUsedChemicalStorage()
+        max = bridge.getTotalChemicalStorage()
     end
-    return usedGases, maxGases
+    return used, max
 end
 
 -- Function to center text on the monitor
-function centerText(monitor, text, line)
+local function centerText(monitor, text, line)
     local w, _ = monitor.getSize()
-    local x = math.floor((w - #text) / 2)
+    local x = math.floor((w - #text) / 2) + 1
     monitor.setCursorPos(x, line)
     monitor.write(text)
 end
 
--- Main program
-function updateDisplay()
+-- Main display program
+local function updateDisplay()
     local monitor = peripheral.find("monitor")
     if not monitor then
-        print("No monitor found.")
-        return
+        error("No monitor found! Make sure a monitor is connected.")
     end
 
-    monitor.setTextScale(2) -- Textgröße auf 2 gesetzt
+    monitor.setTextScale(2)
     monitor.clear()
 
     while true do
         monitor.clear()
 
-        -- Display item storage
+        -- Item storage
         local usedItems, maxItems = getItemStorage()
         local freeItems = maxItems - usedItems
         local percentUsedItems = (maxItems > 0) and ((usedItems / maxItems) * 100) or 0
@@ -74,7 +73,7 @@ function updateDisplay()
         centerText(monitor, string.format("Used: %s | Free: %s", formatBytes(usedItems), formatBytes(freeItems)), 2)
         centerText(monitor, string.format("%.1f%% Used | %.1f%% Free", percentUsedItems, percentFreeItems), 3)
 
-        -- Display fluid storage
+        -- Fluid storage
         local usedFluids, maxFluids = getFluidStorage()
         local freeFluids = maxFluids - usedFluids
         local percentUsedFluids = (maxFluids > 0) and ((usedFluids / maxFluids) * 100) or 0
@@ -84,7 +83,7 @@ function updateDisplay()
         centerText(monitor, string.format("Used: %s | Free: %s", formatBytes(usedFluids), formatBytes(freeFluids)), 6)
         centerText(monitor, string.format("%.1f%% Used | %.1f%% Free", percentUsedFluids, percentFreeFluids), 7)
 
-        -- Display gas storage
+        -- Chemical/Gas storage
         local usedGases, maxGases = getChemicalStorage()
         local freeGases = maxGases - usedGases
         local percentUsedGases = (maxGases > 0) and ((usedGases / maxGases) * 100) or 0
@@ -94,9 +93,9 @@ function updateDisplay()
         centerText(monitor, string.format("Used: %s | Free: %s", formatBytes(usedGases), formatBytes(freeGases)), 10)
         centerText(monitor, string.format("%.1f%% Used | %.1f%% Free", percentUsedGases, percentFreeGases), 11)
 
-        sleep(5) -- Wait 5 seconds before updating again
+        sleep(5) -- Refresh every 5 seconds
     end
 end
 
--- Start the program
+-- Start the display program
 updateDisplay()
