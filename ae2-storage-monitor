@@ -1,21 +1,19 @@
--- me_bridge_chemical_monitor.lua
--- Zeigt Chemical Storage über getChemicalStorage() auf dem Monitor an
-
--- Funktion zum Formatieren von Bytes
-local function formatBytes(bytes)
-    if bytes >= 1000000 then
-        return string.format("%.1fM", bytes / 1000000)
-    elseif bytes >= 1000 then
-        return string.format("%.1fK", bytes / 1000)
-    else
-        return tostring(bytes)
-    end
-end
+-- me_bridge_chemical_debug.lua
+-- Zeigt alle Infos zu Chemical Storage Cells auf dem Monitor an, ohne Berechnung
 
 -- Monitor vorbereiten
 local mon = peripheral.find("monitor")
+local bridge = peripheral.find("me_bridge")
+
 if not mon then
     print("Kein Monitor gefunden!")
+    return
+end
+
+if not bridge then
+    mon.clear()
+    mon.setCursorPos(1,1)
+    mon.write("Kein me_bridge gefunden!")
     return
 end
 
@@ -38,31 +36,30 @@ local function monPrint(text)
     cursorY = cursorY + 1
 end
 
--- Chemical Storage abrufen
-local bridge = peripheral.find("me_bridge")
-if not bridge then
-    monPrint("Kein me_bridge gefunden!")
-    return
-end
+-- Alle Chemical Cells auflisten
+if type(bridge.getCells) == "function" then
+    local ok, cells = pcall(bridge.getCells, bridge)
+    if ok and type(cells) == "table" then
+        monPrint("=== Chemical Cells Debug ===")
+        for i, cell in ipairs(cells) do
+            -- Prüfen ob es eine Chemical Cell ist
+            local ctype = cell.cellType or cell.type or "unknown"
+            if ctype == "chemical" then
+                local name = cell.item or cell.name or "nil"
+                local partitioned = cell.isPartitioned or cell.partitioned or false
+                local includedPrecise = cell.isIncludedPrecise or cell.includePrecise or false
+                local excluded = cell.isExcluded or cell.excluded or false
+                local totalBytes = cell.totalBytes or cell.bytes or 0
 
-while true do
-    mon.clear()
-    cursorY = 1
-
-    -- Chemical Storage abrufen
-    local ok, used = pcall(bridge.getUsedChemicalStorage, bridge)
-    local ok2, total = pcall(bridge.getTotalChemicalStorage, bridge)
-
-    if not ok then used = 0 end
-    if not ok2 then total = 0 end
-    local free = total - used
-    if free < 0 then free = 0 end
-    local percentUsed = (total > 0) and (used / total * 100) or 0
-
-    -- Ausgabe auf Monitor
-    monPrint("=== Chemical Storage ===")
-    monPrint(string.format("Used: %s | Free: %s", formatBytes(used), formatBytes(free)))
-    monPrint(string.format("%.1f%% Used", percentUsed))
-
-    sleep(5)
+                monPrint(string.format(
+                    "Cell #%d: name=%s | totalBytes=%s | Partitioned=%s | IncludedPrecise=%s | Excluded=%s",
+                    i, name, totalBytes, tostring(partitioned), tostring(includedPrecise), tostring(excluded)
+                ))
+            end
+        end
+    else
+        monPrint("Fehler beim Abrufen von Cells: " .. tostring(cells))
+    end
+else
+    monPrint("getCells() nicht verfügbar auf dieser Bridge")
 end
