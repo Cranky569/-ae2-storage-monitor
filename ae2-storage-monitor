@@ -64,6 +64,7 @@ local function processStorage(cellType)
     usedTotal = okUsed and used or 0
     freeTotal = okTotal and total or 0
 
+    -- Zellen durchgehen
     if type(bridge.getCells) == "function" then
         local okCells, cells = pcall(bridge.getCells, bridge)
         if okCells and type(cells) == "table" then
@@ -75,16 +76,16 @@ local function processStorage(cellType)
                     local totalBytes = cell.totalBytes or cell.bytes or 0
                     local partitioned = cell.isPartitioned or cell.partitioned or false
                     local precise = cell.isPrecise or cell.precise or false
-                    local includePrecise = cell.isIncludedPrecise or cell.includePrecise or false
+                    local includedPrecise = cell.isIncludedPrecise or cell.includePrecise or false
 
-                    if partitioned and precise and not includePrecise and totalBytes > 0 then
+                    if partitioned and precise and not includedPrecise and totalBytes > 0 then
                         freeTotal = freeTotal - totalBytes
                         if freeTotal < 0 then freeTotal = 0 end
                     end
 
                     monPrint(string.format(
                         "Cell #%d: name=%s | totalBytes=%s | Partitioned=%s | Precise=%s | IncludedPrecise=%s",
-                        i, item, formatBytes(totalBytes), tostring(partitioned), tostring(precise), tostring(includePrecise)
+                        i, item, formatBytes(totalBytes), tostring(partitioned), tostring(precise), tostring(includedPrecise)
                     ))
                 end
             end
@@ -96,6 +97,18 @@ local function processStorage(cellType)
     end
 
     return usedTotal, freeTotal
+end
+
+local function listCellMethods()
+    local bridge = peripheral.find("me_bridge")
+    if not bridge then return end
+    monPrint("=== GET CELLS / PARTITION METHODS ===")
+    local methods = peripheral.getMethods(peripheral.getName(bridge))
+    for _, m in ipairs(methods) do
+        if string.find(string.lower(m), "cell") then
+            monPrint("- " .. m)
+        end
+    end
 end
 
 local function centerText(text, line)
@@ -122,21 +135,8 @@ while true do
     centerText("Chemical Storage", cursorY); cursorY = cursorY + 1
     centerText(string.format("Used: %s | Free: %s", formatBytes(usedGases), formatBytes(freeGases)), cursorY); cursorY = cursorY + 1
 
-    -- Partition-Prüfung unter Chemical Storage
-    local bridge = peripheral.find("me_bridge")
-    if bridge then
-        monPrint("=== Partition-Prüfung Info ===")
-        monPrint("Alle Methoden der Bridge mit 'cell' enthalten:")
-        local methods = peripheral.getMethods(peripheral.getName(bridge))
-        for _, m in ipairs(methods) do
-            if string.find(string.lower(m), "cell") then
-                monPrint("- " .. m)
-            end
-        end
-        monPrint("Partitioned wird geprüft über: cell.isPartitioned (oder cell.partitioned)")
-        monPrint("Precise wird geprüft über: cell.isPrecise (oder cell.precise)")
-        monPrint("IncludedPrecise wird geprüft über: cell.isIncludedPrecise (oder cell.includePrecise)")
-    end
+    -- Verfügbare Befehle / Partition Prüfen
+    listCellMethods()
 
     sleep(5)
 end
