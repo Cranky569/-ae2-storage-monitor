@@ -59,4 +59,9 @@ for i, cell in ipairs(cells) do
     local isPrecise = cell.isPrecise or false
 
     monPrint(string.format(
-        "Cel
+        "Cell #%d: item=%s | type=%s | totalBytes=%s | bytesPerType=%s | Partitioned=%s | Precise=%s",
+        i, item, ctype, totalBytes, bytesPerType, tostring(isPartitioned), tostring(isPrecise)
+    ))
+end
+
+monPrint("=== Ende ===")
