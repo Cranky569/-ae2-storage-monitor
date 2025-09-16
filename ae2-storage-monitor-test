@@ -9,7 +9,7 @@ local function formatBytes(bytes)
     end
 end
 
--- Item Storage
+-- Get Item Storage
 local function getItemStorage()
     local used, max = 0, 0
     local bridge = peripheral.find("me_bridge")
@@ -20,7 +20,7 @@ local function getItemStorage()
     return used, max
 end
 
--- Fluid Storage
+-- Get Fluid Storage
 local function getFluidStorage()
     local used, max = 0, 0
     local bridge = peripheral.find("me_bridge")
@@ -31,7 +31,7 @@ local function getFluidStorage()
     return used, max
 end
 
--- Chemical Storage
+-- Get Chemical Storage
 local function getChemicalStorage()
     local used, max = 0, 0
     local bridge = peripheral.find("me_bridge")
@@ -42,7 +42,7 @@ local function getChemicalStorage()
     return used, max
 end
 
--- Drives
+-- Get number of drives
 local function getDriveCount()
     local bridge = peripheral.find("me_bridge")
     if bridge then
@@ -52,7 +52,7 @@ local function getDriveCount()
     return 0
 end
 
--- Number of cells per type
+-- Get number of cells per type
 local function getCellsPerType(typeName)
     local bridge = peripheral.find("me_bridge")
     if not bridge then return 0 end
@@ -73,7 +73,7 @@ local function centerText(monitor, text, line)
     monitor.write(text)
 end
 
--- Display program
+-- Main display program
 local function updateDisplay()
     local monitor = peripheral.find("monitor")
     if not monitor then
