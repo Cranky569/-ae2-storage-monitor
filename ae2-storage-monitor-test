@@ -46,16 +46,17 @@ local function getChemicalStorage()
     return used, max
 end
 
--- Get Forge Energy Storage
+-- Get Forge Energy Storage by reading NBT of FE Cells
 local function getFEStorage()
     local used, max = 0, 0
     local bridge = peripheral.find("me_bridge")
     if bridge then
-        local drives = bridge.getDrives()
-        for _, drive in ipairs(drives) do
-            if drive.name == "appflux:fe_qm_cell" then
-                used = used + (drive.energy or 0)
-                max = max + (drive.maxEnergy or 0)
+        local items = bridge.getAvailableItems() or {}
+        for _, stack in ipairs(items) do
+            if stack.name == "appflux:fe_qm_cell" and stack.nbt then
+                local nbt = stack.nbt
+                used = used + (nbt.energy or 0)
+                max = max + (nbt.maxEnergy or 0)
             end
         end
     end
