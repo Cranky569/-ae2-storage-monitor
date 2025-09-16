@@ -1,0 +1,118 @@
+-- Funktion zur Formatierung großer Zahlen
+local function formatBytes(bytes)
+    if bytes >= 1e12 then
+        return string.format("%.2fT", bytes / 1e12)
+    elseif bytes >= 1e9 then
+        return string.format("%.2fG", bytes / 1e9)
+    elseif bytes >= 1e6 then
+        return string.format("%.2fM", bytes / 1e6)
+    elseif bytes >= 1e3 then
+        return string.format("%.2fK", bytes / 1e3)
+    else
+        return tostring(bytes)
+    end
+end
+
+-- Funktion zur zentralisierten Textausgabe
+local function writeCentered(monitor, text, y, color)
+    local w, _ = monitor.getSize()
+    local x = math.floor((w - #text) / 2) + 1
+    monitor.setCursorPos(x, y)
+    if color then monitor.setTextColor(color) end
+    monitor.write(text)
+    monitor.setTextColor(colors.white)
+end
+
+-- Funktion zur Anzeige der Fortschrittsanzeige
+local function drawProgressBar(monitor, y, fraction, color)
+    local w, _ = monitor.getSize()
+    local barWidth = w - 4
+    local filled = math.floor(barWidth * fraction)
+    monitor.setCursorPos(3, y)
+    monitor.setBackgroundColor(color)
+    monitor.write(string.rep(" ", filled))
+    monitor.setBackgroundColor(colors.gray)
+    monitor.write(string.rep(" ", barWidth - filled))
+    monitor.setBackgroundColor(colors.black)
+end
+
+-- Hauptprogramm
+local function updateDisplay()
+    local monitor = peripheral.wrap("monitor")
+    if not monitor then
+        print("Kein Monitor gefunden.")
+        return
+    end
+
+    local bridge = peripheral.wrap("me_bridge")
+    if not bridge then
+        print("Kein ME Bridge gefunden.")
+        return
+    end
+
+    monitor.setTextScale(2)
+    monitor.clear()
+
+    while true do
+        monitor.clear()
+        local y = 1
+        writeCentered(monitor, "ME Energie Monitor", y, colors.yellow)
+        y = y + 2
+
+        -- Anzeige des gespeicherten Stroms
+        local okStored, stored = pcall(function() return bridge.getStoredEnergy() end)
+        local okCap, capacity = pcall(function() return bridge.getEnergyCapacity() end)
+        if okStored and type(stored) == "number" then
+            writeCentered(monitor, "Gespeicherter Strom: " .. formatBytes(stored) .. " AE", y, colors.green)
+            if okCap and type(capacity) == "number" and capacity > 0 then
+                drawProgressBar(monitor, y + 1, stored / capacity, colors.green)
+            end
+            y = y + 2
+        else
+            writeCentered(monitor, "Gespeicherter Strom: N/A", y, colors.red)
+            y = y + 2
+        end
+
+        -- Anzeige der maximalen Stromkapazität
+        if okCap and type(capacity) == "number" then
+            writeCentered(monitor, "Maximale Kapazität: " .. formatBytes(capacity) .. " AE", y, colors.green)
+            y = y + 2
+        else
+            writeCentered(monitor, "Maximale Kapazität: N/A", y, colors.red)
+            y = y + 2
+        end
+
+        -- Anzeige des Kanalpassivverbrauchs
+        local okDrain, drain = pcall(function() return bridge.getChannelPassiveDrain() end)
+        if okDrain and type(drain) == "number" then
+            writeCentered(monitor, "Kanalpassivverbrauch: " .. formatBytes(drain) .. " AE/t", y, colors.orange)
+        else
+            writeCentered(monitor, "Kanalpassivverbrauch: N/A", y, colors.red)
+            drain = 0
+        end
+        y = y + 2
+
+        -- Anzeige des Energieverbrauchs
+        local okUsage, usage = pcall(function() return bridge.getEnergyUsage() end)
+        if okUsage and type(usage) == "number" then
+            writeCentered(monitor, "Energieverbrauch: " .. formatBytes(usage) .. " AE/t", y, colors.red)
+        else
+            writeCentered(monitor, "Energieverbrauch: N/A", y, colors.red)
+            usage = 0
+        end
+        y = y + 2
+
+        -- Anzeige der Energieerzeugung
+        local okGen, gen = pcall(function() return bridge.getAvgPowerInjection() end)
+        if not okGen or gen == nil then
+            gen = usage + drain
+        end
+        writeCentered(monitor, "Energieerzeugung: " .. (gen and formatBytes(gen) or "N/A") .. " AE/t", y, colors.lightBlue)
+        y = y + 2
+
+        sleep(2)
+    end
+end
+
+-- Starte das Programm
+updateDisplay()
