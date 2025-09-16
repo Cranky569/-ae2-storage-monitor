@@ -9,37 +9,52 @@ function formatBytes(bytes)
     end
 end
 
+-- Helper function: filter only valid Item cells (exclude "Partitioned - Include Precise")
+function getFilteredItemCellBytes(bridge)
+    local cells = bridge.listCells()
+    local sumTotal = 0
+    for _, cell in pairs(cells) do
+        if cell.cellType == "item" then
+            -- Exclude "Partitioned - Include Precise"
+            if not (cell.isPartitioned and cell.isPrecise) then
+                sumTotal = sumTotal + (cell.totalBytes or 0)
+            end
+        end
+    end
+    return sumTotal
+end
+
 -- Function to calculate free item storage
 function getItemStorage()
-    local usedItems, maxItems = 0, 0
     local bridge = peripheral.find("me_bridge")
     if bridge then
-        usedItems = bridge.getUsedItemStorage()
-        maxItems = bridge.getTotalItemStorage()
+        local usedItems = bridge.getUsedItemStorage()
+        local maxItems = getFilteredItemCellBytes(bridge)
+        return usedItems, maxItems
     end
-    return usedItems, maxItems
+    return 0, 0
 end
 
 -- Function to calculate free fluid storage
 function getFluidStorage()
-    local usedFluids, maxFluids = 0, 0
     local bridge = peripheral.find("me_bridge")
     if bridge then
-        usedFluids = bridge.getUsedFluidStorage()
-        maxFluids = bridge.getTotalFluidStorage()
+        local usedFluids = bridge.getUsedFluidStorage()
+        local maxFluids = bridge.getTotalFluidStorage()
+        return usedFluids, maxFluids
     end
-    return usedFluids, maxFluids
+    return 0, 0
 end
 
 -- Function to calculate free gas storage
 function getChemicalStorage()
-    local usedGases, maxGases = 0, 0
     local bridge = peripheral.find("me_bridge")
     if bridge then
-        usedGases = bridge.getUsedChemicalStorage()
-        maxGases = bridge.getTotalChemicalStorage()
+        local usedGases = bridge.getUsedChemicalStorage()
+        local maxGases = bridge.getTotalChemicalStorage()
+        return usedGases, maxGases
     end
-    return usedGases, maxGases
+    return 0, 0
 end
 
 -- Function to center text on the monitor
