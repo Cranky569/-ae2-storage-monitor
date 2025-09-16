@@ -1,63 +1,9 @@
--- Function to format large numbers into a human-readable format
-function formatBytes(bytes)
-    if bytes >= 1000000 then
-        return string.format("%.1fM", bytes / 1000000)
-    elseif bytes >= 1000 then
-        return string.format("%.1fK", bytes / 1000)
-    else
-        return tostring(bytes)
-    end
-end
-
--- Function to safely call a bridge method
-local function safeCall(fn, ...)
-    if type(fn) ~= "function" then return false, 0 end
-    local ok, res = pcall(fn, ...)
-    if not ok then return false, 0 end
-    return true, res or 0
-end
-
--- Function to calculate item storage excluding Precise+Partitioned cells for Free
-function getItemStorage()
-    local bridge = peripheral.find("me_bridge")
-    if not bridge then return 0,0 end
-
-    local _, usedItems = safeCall(bridge.getUsedItemStorage)
-    local maxItems = 0
-
-    if type(bridge.getCells) == "function" then
-        local ok, cells = pcall(bridge.getCells, bridge)
-        if ok and type(cells) == "table" then
-            for _, cell in pairs(cells) do
-                local ctype = cell.cellType or cell.type
-                local totalBytes = cell.totalBytes or 0
-                local isPartitioned = cell.isPartitioned or false
-                local isPrecise = cell.isPrecise or false
-
-                if tostring(ctype) == "item" then
-                    -- Nur normale Zellen fließen in Free ein
-                    if not (isPartitioned and isPrecise) then
-                        maxItems = maxItems + totalBytes
-                    end
-                end
-            end
-        end
-    else
-        -- Fallback, falls getCells nicht verfügbar
-        local ok, total = safeCall(bridge.getTotalItemStorage)
-        if ok then maxItems = total end
-    end
-
-    return usedItems, maxItems
-end
-
--- Function to calculate fluid storage excluding Precise+Partitioned cells for Free
 function getFluidStorage()
     local bridge = peripheral.find("me_bridge")
     if not bridge then return 0,0 end
 
     local _, usedFluids = safeCall(bridge.getUsedFluidStorage)
-    local maxFluids = 0
+    local maxFluidsFree = 0
 
     if type(bridge.getCells) == "function" then
         local ok, cells = pcall(bridge.getCells, bridge)
@@ -65,31 +11,27 @@ function getFluidStorage()
             for _, cell in pairs(cells) do
                 local ctype = cell.cellType or cell.type
                 local totalBytes = cell.totalBytes or 0
-                local isPartitioned = cell.isPartitioned or false
                 local isPrecise = cell.isPrecise or false
 
-                if tostring(ctype) == "fluid" then
-                    if not (isPartitioned and isPrecise) then
-                        maxFluids = maxFluids + totalBytes
-                    end
+                if tostring(ctype) == "fluid" and not isPrecise then
+                    maxFluidsFree = maxFluidsFree + totalBytes
                 end
             end
         end
     else
         local ok, total = safeCall(bridge.getTotalFluidStorage)
-        if ok then maxFluids = total end
+        if ok then maxFluidsFree = total end
     end
 
-    return usedFluids, maxFluids
+    return usedFluids, maxFluidsFree
 end
 
--- Function to calculate chemical storage excluding Precise+Partitioned cells for Free
 function getChemicalStorage()
     local bridge = peripheral.find("me_bridge")
     if not bridge then return 0,0 end
 
     local _, usedGases = safeCall(bridge.getUsedChemicalStorage)
-    local maxGases = 0
+    local maxGasesFree = 0
 
     if type(bridge.getCells) == "function" then
         local ok, cells = pcall(bridge.getCells, bridge)
@@ -97,83 +39,17 @@ function getChemicalStorage()
             for _, cell in pairs(cells) do
                 local ctype = cell.cellType or cell.type
                 local totalBytes = cell.totalBytes or 0
-                local isPartitioned = cell.isPartitioned or false
                 local isPrecise = cell.isPrecise or false
 
-                if tostring(ctype) == "chemical" then
-                    if not (isPartitioned and isPrecise) then
-                        maxGases = maxGases + totalBytes
-                    end
+                if tostring(ctype) == "chemical" and not isPrecise then
+                    maxGasesFree = maxGasesFree + totalBytes
                 end
             end
         end
     else
         local ok, total = safeCall(bridge.getTotalChemicalStorage)
-        if ok then maxGases = total end
+        if ok then maxGasesFree = total end
     end
 
-    return usedGases, maxGases
+    return usedGases, maxGasesFree
 end
-
--- Function to center text on the monitor
-function centerText(monitor, text, line)
-    local w, _ = monitor.getSize()
-    local x = math.floor((w - #text) / 2) + 1
-    if x < 1 then x = 1 end
-    monitor.setCursorPos(x, line)
-    monitor.write(text)
-end
-
--- Main display loop
-function updateDisplay()
-    local monitor = peripheral.find("monitor")
-    if not monitor then
-        print("No monitor found.")
-        return
-    end
-
-    monitor.setTextScale(1)
-    monitor.clear()
-
-    while true do
-        monitor.clear()
-
-        -- Items
-        local usedItems, maxItems = getItemStorage()
-        local freeItems = maxItems - usedItems
-        if freeItems < 0 then freeItems = 0 end
-        local percentUsedItems = (maxItems > 0) and (usedItems / maxItems * 100) or 0
-        local percentFreeItems = 100 - percentUsedItems
-        monitor.setTextColor(colors.yellow)
-        centerText(monitor, "Item Storage", 1)
-        centerText(monitor, string.format("Used: %s | Free: %s", formatBytes(usedItems), formatBytes(freeItems)), 2)
-        centerText(monitor, string.format("%.1f%% Used | %.1f%% Free", percentUsedItems, percentFreeItems), 3)
-
-        -- Fluids
-        local usedFluids, maxFluids = getFluidStorage()
-        local freeFluids = maxFluids - usedFluids
-        if freeFluids < 0 then freeFluids = 0 end
-        local percentUsedFluids = (maxFluids > 0) and (usedFluids / maxFluids * 100) or 0
-        local percentFreeFluids = 100 - percentUsedFluids
-        monitor.setTextColor(colors.cyan)
-        centerText(monitor, "Fluid Storage", 5)
-        centerText(monitor, string.format("Used: %s | Free: %s", formatBytes(usedFluids), formatBytes(freeFluids)), 6)
-        centerText(monitor, string.format("%.1f%% Used | %.1f%% Free", percentUsedFluids, percentFreeFluids), 7)
-
-        -- Chemicals
-        local usedGases, maxGases = getChemicalStorage()
-        local freeGases = maxGases - usedGases
-        if freeGases < 0 then freeGases = 0 end
-        local percentUsedGases = (maxGases > 0) and (usedGases / maxGases * 100) or 0
-        local percentFreeGases = 100 - percentUsedGases
-        monitor.setTextColor(colors.purple)
-        centerText(monitor, "Chemical Storage", 9)
-        centerText(monitor, string.format("Used: %s | Free: %s", formatBytes(usedGases), formatBytes(freeGases)), 10)
-        centerText(monitor, string.format("%.1f%% Used | %.1f%% Free", percentUsedGases, percentFreeGases), 11)
-
-        sleep(5)
-    end
-end
-
--- Start the program
-updateDisplay()
