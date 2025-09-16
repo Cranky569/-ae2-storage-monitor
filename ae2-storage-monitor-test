@@ -52,19 +52,6 @@ local function getDriveCount()
     return 0
 end
 
--- Get number of cells per type
-local function getCellsPerType(typeName)
-    local bridge = peripheral.find("me_bridge")
-    if not bridge then return 0 end
-    local count = 0
-    for _, drive in pairs(bridge.getDrives()) do
-        if drive.type == typeName then
-            count = count + bridge.getDriveCells(drive.address)
-        end
-    end
-    return count
-end
-
 -- Center text on the monitor
 local function centerText(monitor, text, line)
     local w, _ = monitor.getSize()
@@ -100,8 +87,7 @@ local function updateDisplay()
         monitor.setTextColor(colors.yellow)
         centerText(monitor, "Item Storage", currentLine)
         currentLine = currentLine + 1
-        centerText(monitor, "Cells: " .. getCellsPerType("item"), currentLine)
-        currentLine = currentLine + 1
+        currentLine = currentLine + 1 -- blank line instead of Cells
         centerText(monitor, string.format("Used: %s | Free: %s", formatBytes(usedItems), formatBytes(freeItems)), currentLine)
         currentLine = currentLine + 1
         centerText(monitor, string.format("%.1f%% Used | %.1f%% Free", percentUsedItems, percentFreeItems), currentLine)
@@ -115,8 +101,7 @@ local function updateDisplay()
         monitor.setTextColor(colors.cyan)
         centerText(monitor, "Fluid Storage", currentLine)
         currentLine = currentLine + 1
-        centerText(monitor, "Cells: " .. getCellsPerType("fluid"), currentLine)
-        currentLine = currentLine + 1
+        currentLine = currentLine + 1 -- blank line instead of Cells
         centerText(monitor, string.format("Used: %s | Free: %s", formatBytes(usedFluids), formatBytes(freeFluids)), currentLine)
         currentLine = currentLine + 1
         centerText(monitor, string.format("%.1f%% Used | %.1f%% Free", percentUsedFluids, percentFreeFluids), currentLine)
@@ -130,8 +115,7 @@ local function updateDisplay()
         monitor.setTextColor(colors.purple)
         centerText(monitor, "Chemical Storage", currentLine)
         currentLine = currentLine + 1
-        centerText(monitor, "Cells: " .. getCellsPerType("chemical"), currentLine)
-        currentLine = currentLine + 1
+        currentLine = currentLine + 1 -- blank line instead of Cells
         centerText(monitor, string.format("Used: %s | Free: %s", formatBytes(usedGases), formatBytes(freeGases)), currentLine)
         currentLine = currentLine + 1
         centerText(monitor, string.format("%.1f%% Used | %.1f%% Free", percentUsedGases, percentFreeGases), currentLine)
