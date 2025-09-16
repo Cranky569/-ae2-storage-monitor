@@ -1,7 +1,13 @@
 local mon = peripheral.find("monitor")
 local bridge = peripheral.find("me_bridge")
 
-if not mon or not bridge then return end
+if not mon then return end
+if not bridge then
+    mon.clear()
+    mon.setCursorPos(1,1)
+    mon.write("Kein me_bridge gefunden!")
+    return
+end
 
 mon.clear()
 mon.setBackgroundColor(colors.black)
@@ -27,12 +33,13 @@ if not ok then
     return
 end
 
+monPrint("=== Chemical Cells ===")
 for i, cell in ipairs(cells) do
     local ctype = cell.cellType or cell.type
     if ctype == "chemical" or ctype == "c" then
         monPrint("Chemical Cell #" .. i)
         for k,v in pairs(cell) do
-            monPrint("  " .. k .. " = " .. tostring(v))
+            monPrint("  " .. tostring(k) .. " = " .. tostring(v))
         end
         monPrint("----------------")
     end
