@@ -1,7 +1,6 @@
--- me_bridge_storage_monitor.lua (angepasst)
--- Zeigt Item, Fluid und Chemical Storage auf dem Monitor an
+-- me_bridge_storage_monitor.lua
+-- Zeigt Fluid und Chemical Storage auf dem Monitor an
 -- Partitioned + Precise Zellen werden korrekt vom Free Storage abgezogen
--- Extrahiert Namen korrekt, auch wenn cell.item eine Tabelle ist
 
 local function formatBytes(bytes)
     if bytes >= 1000000 then
@@ -46,17 +45,6 @@ local function monPrint(text)
     cursorY = cursorY + 1
 end
 
-local function getCellName(cell)
-    if type(cell.item) == "table" then
-        -- Versuche id oder displayName zu nutzen
-        return cell.item.id or cell.item.displayName or "unknown"
-    elseif type(cell.name) == "table" then
-        return cell.name.id or cell.name.displayName or "unknown"
-    else
-        return cell.item or cell.name or "unknown"
-    end
-end
-
 local function processStorage(cellType)
     local bridge = peripheral.find("me_bridge")
     if not bridge then
@@ -66,12 +54,12 @@ local function processStorage(cellType)
 
     local usedTotal, freeTotal = 0, 0
     local usedFn, totalFn
-    if cellType == "item" then
-        usedFn, totalFn = bridge.getUsedItemStorage, bridge.getTotalItemStorage
-    elseif cellType == "fluid" then
+    if cellType == "fluid" then
         usedFn, totalFn = bridge.getUsedFluidStorage, bridge.getTotalFluidStorage
     elseif cellType == "chemical" then
         usedFn, totalFn = bridge.getUsedChemicalStorage, bridge.getTotalChemicalStorage
+    else
+        return 0,0
     end
 
     local okUsed, used = safeCall(usedFn, bridge)
@@ -83,17 +71,17 @@ local function processStorage(cellType)
     if type(bridge.getCells) == "function" then
         local okCells, cells = pcall(bridge.getCells, bridge)
         if okCells and type(cells) == "table" then
-            monPrint("=== " .. string.upper(cellType) .. " Cells ===")
+            monPrint("=== " .. string.upper(cellType) .. " CELLS ===")
             for i, cell in ipairs(cells) do
-                local ctype = cell.cellType or cell.type or cell["cell_type"] or "nil"
+                local ctype = cell.cellType or cell.type or cell["cell_type"] or "unknown"
                 if ctype == cellType then
-                    local name = getCellName(cell)
+                    local name = cell.item or cell.name or "nil"
                     local totalBytes = cell.totalBytes or cell.bytes or 0
                     local partitioned = cell.isPartitioned or cell.partitioned or false
                     local precise = cell.isPrecise or cell.precise or false
 
-                    -- Nur vom Free abziehen, wenn Partitioned AND Precise
-                    if partitioned == true and precise == true then
+                    -- Nur Partitioned + Precise Zellen vom Free abziehen
+                    if partitioned and precise and totalBytes > 0 then
                         freeTotal = freeTotal - totalBytes
                         if freeTotal < 0 then freeTotal = 0 end
                     end
@@ -104,6 +92,8 @@ local function processStorage(cellType)
                     ))
                 end
             end
+        else
+            monPrint(cellType .. " cells konnten nicht geladen werden!")
         end
     end
 
@@ -122,21 +112,17 @@ while true do
     mon.clear()
     cursorY = 1
 
-    local usedItems, freeItems = processStorage("item")
-    local percentUsed = (freeItems + usedItems > 0) and (usedItems / (freeItems + usedItems) * 100) or 0
-    centerText("Item Storage", cursorY); cursorY = cursorY + 1
-    centerText(string.format("Used: %s | Free: %s", formatBytes(usedItems), formatBytes(freeItems)), cursorY); cursorY = cursorY + 1
-    centerText(string.format("%.1f%% Used", percentUsed), cursorY); cursorY = cursorY + 2
-
+    -- Fluids
     local usedFluids, freeFluids = processStorage("fluid")
     local percentUsedF = (freeFluids + usedFluids > 0) and (usedFluids / (freeFluids + usedFluids) * 100) or 0
-    centerText("Fluid Storage", cursorY); cursorY = cursorY + 1
+    centerText("FLUID STORAGE", cursorY); cursorY = cursorY + 1
     centerText(string.format("Used: %s | Free: %s", formatBytes(usedFluids), formatBytes(freeFluids)), cursorY); cursorY = cursorY + 1
     centerText(string.format("%.1f%% Used", percentUsedF), cursorY); cursorY = cursorY + 2
 
+    -- Chemicals
     local usedGases, freeGases = processStorage("chemical")
     local percentUsedC = (freeGases + usedGases > 0) and (usedGases / (freeGases + usedGases) * 100) or 0
-    centerText("Chemical Storage", cursorY); cursorY = cursorY + 1
+    centerText("CHEMICAL STORAGE", cursorY); cursorY = cursorY + 1
     centerText(string.format("Used: %s | Free: %s", formatBytes(usedGases), formatBytes(freeGases)), cursorY); cursorY = cursorY + 1
     centerText(string.format("%.1f%% Used", percentUsedC), cursorY); cursorY = cursorY + 1
 
