@@ -1,4 +1,16 @@
--- me_bridge_chemicals_monitor.lua
+-- me_bridge_chemical_monitor.lua
+-- Zeigt Chemical Storage auf dem Monitor an, berücksichtigt Partitionen korrekt
+
+local function formatBytes(bytes)
+    if bytes >= 1000000 then
+        return string.format("%.1fM", bytes / 1000000)
+    elseif bytes >= 1000 then
+        return string.format("%.1fK", bytes / 1000)
+    else
+        return tostring(bytes)
+    end
+end
+
 local mon = peripheral.find("monitor")
 local bridge = peripheral.find("me_bridge")
 
@@ -6,6 +18,7 @@ if not mon then
     print("Kein Monitor gefunden!")
     return
 end
+
 if not bridge then
     mon.clear()
     mon.setCursorPos(1,1)
@@ -13,6 +26,7 @@ if not bridge then
     return
 end
 
+-- Monitor vorbereiten
 mon.clear()
 mon.setBackgroundColor(colors.black)
 mon.setTextColor(colors.white)
@@ -32,58 +46,50 @@ local function monPrint(text)
     cursorY = cursorY + 1
 end
 
-local function formatBytes(bytes)
-    if bytes >= 1000000 then
-        return string.format("%.1fM", bytes/1000000)
-    elseif bytes >= 1000 then
-        return string.format("%.1fK", bytes/1000)
-    else
-        return tostring(bytes)
-    end
-end
-
 -- Berechne Chemical Storage
 local usedChem = 0
 local freeChem = 0
-
--- Gesamtnutzung ermitteln
-local okUsed, used = pcall(bridge.getUsedChemicalStorage, bridge)
-local okTotal, total = pcall(bridge.getTotalChemicalStorage, bridge)
-usedChem = okUsed and used or 0
-freeChem = okTotal and total or 0
+if bridge.getUsedChemicalStorage then
+    usedChem = bridge.getUsedChemicalStorage()
+end
+if bridge.getTotalChemicalStorage then
+    freeChem = bridge.getTotalChemicalStorage()
+end
 
 -- Zellen prüfen
-if type(bridge.getCells) == "function" then
+if bridge.getCells then
     local ok, cells = pcall(bridge.getCells, bridge)
     if ok and type(cells) == "table" then
         monPrint("=== CHEMICAL CELLS ===")
         for i, cell in ipairs(cells) do
-            local ctype = cell.cellType or cell.type or "unknown"
+            local ctype = cell.cellType or cell.type or cell["cell_type"] or "unknown"
             if ctype == "chemical" then
+                local item = cell.item or cell.name or "nil"
                 local totalBytes = cell.totalBytes or cell.bytes or 0
                 local partitioned = cell.isPartitioned or cell.partitioned or false
                 local precise = cell.isPrecise or cell.precise or false
                 local includedPrecise = cell.isIncludedPrecise or cell.includePrecise or false
+                local excluded = cell.isExcluded or cell.excluded or false
 
-                -- Free Storage nur abziehen, wenn Partitioned+Precise UND nicht IncludedPrecise
-                if partitioned and precise and not includedPrecise then
+                -- Free Storage anpassen: nur IncludedPrecise wird abgezogen
+                if includedPrecise then
                     freeChem = freeChem - totalBytes
                     if freeChem < 0 then freeChem = 0 end
                 end
 
-                local item = cell.item or cell.name or "nil"
                 monPrint(string.format(
-                    "Cell #%d: name=%s | totalBytes=%s | Partitioned=%s | Precise=%s | IncludedPrecise=%s",
-                    i, item, formatBytes(totalBytes), tostring(partitioned), tostring(precise), tostring(includedPrecise)
+                    "Cell #%d: name=%s | totalBytes=%s | Partitioned=%s | Precise=%s | IncludedPrecise=%s | Excluded=%s",
+                    i, item, formatBytes(totalBytes), tostring(partitioned), tostring(precise),
+                    tostring(includedPrecise), tostring(excluded)
                 ))
             end
         end
     else
-        monPrint("getCells() Fehler: " .. tostring(cells))
+        monPrint("Fehler beim Abrufen der Cells: " .. tostring(cells))
     end
 end
 
--- Storage anzeigen
-monPrint("")
-monPrint(string.format("Used Chemical Storage: %s", formatBytes(usedChem)))
-monPrint(string.format("Free Chemical Storage: %s", formatBytes(freeChem)))
+-- Ergebnisse auf dem Monitor anzeigen
+monPrint("----------------------------")
+monPrint(string.format("Used Chemicals: %s", formatBytes(usedChem)))
+monPrint(string.format("Free Chemicals: %s", formatBytes(freeChem)))
