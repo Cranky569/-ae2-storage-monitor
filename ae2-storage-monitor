@@ -1,66 +1,208 @@
--- me_bridge_cells_monitor.lua
--- Zeigt alle Methoden der me_bridge, die "cell" enthalten, auf dem Monitor
+-- Robustiertes Anzeige-Script für ME Bridge (partitioned/include precise rauslassen)
+-- Debug aktiviert: Ausgaben im ComputerCraft-Terminal beginnen mit "DEBUG:"
 
-local mon = peripheral.find("monitor")
-local bridge = peripheral.find("me_bridge")
-
-if not mon then
-    print("Kein Monitor gefunden!")
-    return
-end
-
-if not bridge then
-    mon.clear()
-    mon.setCursorPos(1,1)
-    mon.write("Kein me_bridge gefunden!")
-    return
-end
-
--- Monitor vorbereiten
-mon.clear()
-mon.setBackgroundColor(colors.black)
-mon.setTextColor(colors.white)
-mon.setTextScale(1)
-local w,h = mon.getSize()
-local cursorY = 1
-
-local function monPrint(text)
-    if cursorY > h then
-        mon.scroll(1)
-        cursorY = h
-        mon.setCursorPos(1,cursorY)
-        mon.clearLine()
-    end
-    mon.setCursorPos(1,cursorY)
-    mon.write(text)
-    cursorY = cursorY + 1
-end
-
--- Alle Methoden der Bridge auflisten
-local methods = peripheral.getMethods(peripheral.getName(bridge))
-monPrint("=== ME Bridge Methoden (Cells) ===")
-for _, m in ipairs(methods) do
-    if string.find(string.lower(m), "cell") then
-        monPrint("- " .. m)
-    end
-end
-
--- Optional: listCells() direkt ausgeben
-if bridge.listCells then
-    local ok, cells = pcall(bridge.listCells, bridge)
-    if ok and type(cells) == "table" then
-        monPrint("---- listCells() ----")
-        for i, cell in ipairs(cells) do
-            local item = cell.item or cell.name or "nil"
-            local ctype = cell.cellType or cell.type or "nil"
-            local totalBytes = cell.totalBytes or 0
-            monPrint(string.format("Cell #%d: item=%s | type=%s | totalBytes=%d", i, item, ctype, totalBytes))
-        end
+-- Function to format large numbers into a human-readable format
+function formatBytes(bytes)
+    bytes = bytes or 0
+    if bytes >= 1000000 then
+        return string.format("%.1fM", bytes / 1000000)
+    elseif bytes >= 1000 then
+        return string.format("%.1fK", bytes / 1000)
     else
-        monPrint("listCells() Fehler: " .. tostring(cells))
+        return tostring(bytes)
     end
-else
-    monPrint("listCells() nicht verfügbar")
 end
 
-monPrint("=== Ende ===")
+-- Safe pcall helper
+local function safeCall(fn, ...)
+    if type(fn) ~= "function" then return false, nil end
+    local ok, res = pcall(fn, ...)
+    if not ok then
+        return false, res
+    end
+    return true, res
+end
+
+-- Helper function: filter only valid Item cells (exclude "Partitioned - Include Precise")
+function getFilteredItemCellBytes(bridge)
+    if not bridge then
+        print("DEBUG: getFilteredItemCellBytes: bridge is nil")
+        return 0
+    end
+
+    -- if getCells is not provided by this bridge, fallback to total storage if available
+    if type(bridge.getCells) ~= "function" then
+        print("DEBUG: bridge.getCells() not available; falling back to getTotalItemStorage() if present")
+        local ok, fallback = safeCall(bridge.getTotalItemStorage)
+        if ok and fallback then
+            print("DEBUG: Fallback total item storage:", tostring(fallback))
+            return fallback
+        end
+        return 0
+    end
+
+    -- call getCells safely
+    local ok, cellsOrErr = pcall(function() return bridge.getCells() end)
+    if not ok then
+        print("DEBUG: bridge.getCells() call failed:", tostring(cellsOrErr))
+        return 0
+    end
+    local cells = cellsOrErr
+    if not cells then
+        print("DEBUG: bridge.getCells() returned nil")
+        return 0
+    end
+    if type(cells) ~= "table" then
+        print("DEBUG: bridge.getCells() returned non-table:", type(cells))
+        return 0
+    end
+
+    print("DEBUG: Cells data ->")
+    print(textutils.serialize(cells))
+
+    local sumTotal = 0
+    for i, cell in pairs(cells) do
+        print(string.format("DEBUG: Checking cell #%s", tostring(i)))
+        if type(cell) == "table" then
+            print(textutils.serialize(cell))
+        else
+            print("DEBUG: cell is not a table:", tostring(cell))
+        end
+
+        -- tolerate different field names across versions
+        local ctype = cell and (cell.cellType or cell.type or cell["cell_type"] or cell["celltype"])
+        local isPartitioned = cell and (cell.isPartitioned or cell.partitioned or cell["is_partitioned"])
+        local isPrecise = cell and (cell.isPrecise or cell.precise or cell["is_precise"])
+        local totalBytes = cell and (cell.totalBytes or cell.bytes or cell["total_bytes"] or 0)
+
+        -- only count item cells
+        if tostring(ctype) == "item" then
+            if not (isPartitioned and isPrecise) then
+                sumTotal = sumTotal + (totalBytes or 0)
+            else
+                print("DEBUG: Skipping Partitioned - Include Precise cell")
+            end
+        else
+            print("DEBUG: Skipping non-item cell (type=" .. tostring(ctype) .. ")")
+        end
+    end
+
+    return sumTotal
+end
+
+-- Function to calculate free item storage (uses filtered cells)
+function getItemStorage()
+    local bridge = peripheral.find("me_bridge")
+    if not bridge then
+        print("DEBUG: getItemStorage: no me_bridge peripheral found")
+        return 0, 0
+    end
+
+    local okUsed, usedItems = safeCall(bridge.getUsedItemStorage)
+    if not okUsed then
+        print("DEBUG: getUsedItemStorage failed:", tostring(usedItems))
+        usedItems = 0
+    end
+
+    local maxItems = getFilteredItemCellBytes(bridge)
+    return usedItems or 0, maxItems or 0
+end
+
+-- Function to calculate free fluid storage (robust)
+function getFluidStorage()
+    local bridge = peripheral.find("me_bridge")
+    if not bridge then return 0, 0 end
+
+    local okUsed, usedFluids = safeCall(bridge.getUsedFluidStorage)
+    if not okUsed then
+        print("DEBUG: getUsedFluidStorage failed:", tostring(usedFluids))
+        usedFluids = 0
+    end
+    local okTotal, maxFluids = safeCall(bridge.getTotalFluidStorage)
+    if not okTotal then
+        print("DEBUG: getTotalFluidStorage failed:", tostring(maxFluids))
+        maxFluids = 0
+    end
+    return usedFluids or 0, maxFluids or 0
+end
+
+-- Function to calculate free gas storage (robust)
+function getChemicalStorage()
+    local bridge = peripheral.find("me_bridge")
+    if not bridge then return 0, 0 end
+
+    local okUsed, usedGases = safeCall(bridge.getUsedChemicalStorage)
+    if not okUsed then
+        print("DEBUG: getUsedChemicalStorage failed:", tostring(usedGases))
+        usedGases = 0
+    end
+    local okTotal, maxGases = safeCall(bridge.getTotalChemicalStorage)
+    if not okTotal then
+        print("DEBUG: getTotalChemicalStorage failed:", tostring(maxGases))
+        maxGases = 0
+    end
+    return usedGases or 0, maxGases or 0
+end
+
+-- Function to center text on the monitor (avoid x = 0)
+function centerText(monitor, text, line)
+    local w, _ = monitor.getSize()
+    local x = math.floor((w - #text) / 2) + 1
+    if x < 1 then x = 1 end
+    monitor.setCursorPos(x, line)
+    monitor.write(text)
+end
+
+-- Main program
+function updateDisplay()
+    local monitor = peripheral.find("monitor")
+    if not monitor then
+        print("No monitor found.")
+        return
+    end
+
+    monitor.setTextScale(1)
+    monitor.clear()
+
+    while true do
+        monitor.clear()
+
+        -- Display item storage
+        local usedItems, maxItems = getItemStorage()
+        local freeItems = (maxItems or 0) - (usedItems or 0)
+        if freeItems < 0 then freeItems = 0 end
+        local percentUsedItems = (maxItems > 0) and ((usedItems / maxItems) * 100) or 0
+        local percentFreeItems = 100 - percentUsedItems
+        monitor.setTextColor(colors.yellow)
+        centerText(monitor, "Item Storage", 1)
+        centerText(monitor, string.format("Used: %s | Free: %s", formatBytes(usedItems), formatBytes(freeItems)), 2)
+        centerText(monitor, string.format("%.1f%% Used | %.1f%% Free", percentUsedItems, percentFreeItems), 3)
+
+        -- Display fluid storage
+        local usedFluids, maxFluids = getFluidStorage()
+        local freeFluids = (maxFluids or 0) - (usedFluids or 0)
+        if freeFluids < 0 then freeFluids = 0 end
+        local percentUsedFluids = (maxFluids > 0) and ((usedFluids / maxFluids) * 100) or 0
+        local percentFreeFluids = 100 - percentUsedFluids
+        monitor.setTextColor(colors.cyan)
+        centerText(monitor, "Fluid Storage", 5)
+        centerText(monitor, string.format("Used: %s | Free: %s", formatBytes(usedFluids), formatBytes(freeFluids)), 6)
+        centerText(monitor, string.format("%.1f%% Used | %.1f%% Free", percentUsedFluids, percentFreeFluids), 7)
+
+        -- Display gas storage
+        local usedGases, maxGases = getChemicalStorage()
+        local freeGases = (maxGases or 0) - (usedGases or 0)
+        if freeGases < 0 then freeGases = 0 end
+        local percentUsedGases = (maxGases > 0) and ((usedGases / maxGases) * 100) or 0
+        local percentFreeGases = 100 - percentUsedGases
+        monitor.setTextColor(colors.purple)
+        centerText(monitor, "Chemical Storage", 9)
+        centerText(monitor, string.format("Used: %s | Free: %s", formatBytes(usedGases), formatBytes(freeGases)), 10)
+        centerText(monitor, string.format("%.1f%% Used | %.1f%% Free", percentUsedGases, percentFreeGases), 11)
+
+        sleep(5) -- Wait 5 seconds before updating again
+    end
+end
+
+-- Start the program
+updateDisplay()
