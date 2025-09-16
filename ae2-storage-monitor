@@ -1,7 +1,6 @@
--- me_bridge_chemical_debug.lua
--- Zeigt alle Infos zu Chemical Storage Cells auf dem Monitor an, ohne Berechnung
+-- me_bridge_fluid_storage_debug.lua
+-- Zeigt alle Infos von getFluidStorage() auf dem Monitor, ohne Berechnung
 
--- Monitor vorbereiten
 local mon = peripheral.find("monitor")
 local bridge = peripheral.find("me_bridge")
 
@@ -36,30 +35,19 @@ local function monPrint(text)
     cursorY = cursorY + 1
 end
 
--- Alle Chemical Cells auflisten
-if type(bridge.getCells) == "function" then
-    local ok, cells = pcall(bridge.getCells, bridge)
-    if ok and type(cells) == "table" then
-        monPrint("=== Chemical Cells Debug ===")
-        for i, cell in ipairs(cells) do
-            -- Prüfen ob es eine Chemical Cell ist
-            local ctype = cell.cellType or cell.type or "unknown"
-            if ctype == "chemical" then
-                local name = cell.item or cell.name or "nil"
-                local partitioned = cell.isPartitioned or cell.partitioned or false
-                local includedPrecise = cell.isIncludedPrecise or cell.includePrecise or false
-                local excluded = cell.isExcluded or cell.excluded or false
-                local totalBytes = cell.totalBytes or cell.bytes or 0
+-- Fluid Storage abrufen
+local ok, usedFluids = pcall(bridge.getUsedFluidStorage, bridge)
+local ok2, maxFluids = pcall(bridge.getTotalFluidStorage, bridge)
 
-                monPrint(string.format(
-                    "Cell #%d: name=%s | totalBytes=%s | Partitioned=%s | IncludedPrecise=%s | Excluded=%s",
-                    i, name, totalBytes, tostring(partitioned), tostring(includedPrecise), tostring(excluded)
-                ))
-            end
-        end
-    else
-        monPrint("Fehler beim Abrufen von Cells: " .. tostring(cells))
-    end
+monPrint("=== Fluid Storage Debug ===")
+if ok then
+    monPrint("Used Fluid Storage: " .. tostring(usedFluids))
 else
-    monPrint("getCells() nicht verfügbar auf dieser Bridge")
+    monPrint("Fehler beim Abrufen von UsedFluidStorage: " .. tostring(usedFluids))
+end
+
+if ok2 then
+    monPrint("Total Fluid Storage: " .. tostring(maxFluids))
+else
+    monPrint("Fehler beim Abrufen von TotalFluidStorage: " .. tostring(maxFluids))
 end
