@@ -1,142 +1,54 @@
--- me_listcells_debug.lua
--- Robust Debug-Script: prüft listCells(), zeigt Peripherals & alle Cell-Felder
--- Speziell dafür gedacht, herauszufinden, wie deine me_bridge die Cells zurückgibt.
+-- me_bridge_methods_monitor.lua
+-- Zeigt wichtige Methoden der me_bridge (z.B. craftItem) auf einem Monitor
 
-local function safePrint(...)
-    print(...)
-end
+local mon = peripheral.find("monitor")
+local bridge = peripheral.find("me_bridge")
 
-safePrint("=== ME Bridge listCells Debug ===")
-
--- Liste alle Peripherals kurz auf (damit du siehst, wie die Bridge heißt)
-local okNames, names = pcall(function() return peripheral.getNames() end)
-if not okNames or type(names) ~= "table" then
-    safePrint("WARN: konnte peripheral.getNames() nicht aufrufen.")
-else
-    safePrint("Peripherals found:", textutils.serialize(names))
-end
-
--- Suche einen Peripheral, der listCells oder getTotalItemStorage anbietet
-local bridgeName = nil
-for _, name in ipairs(names or {}) do
-    local okMeth, methods = pcall(peripheral.getMethods, name)
-    if okMeth and type(methods) == "table" then
-        for _, m in ipairs(methods) do
-            if m == "listCells" or m == "getTotalItemStorage" or m == "getUsedItemStorage" then
-                bridgeName = name
-                break
-            end
-        end
-    end
-    if bridgeName then break end
-end
-
-if not bridgeName then
-    safePrint("KEINE geeignete ME-Bridge gefunden (suche nach listCells/getTotalItemStorage).")
-    safePrint("Wenn du weißt, wie die Bridge heißt, kannst du den Namen hier hardcoden.")
+if not mon then
+    print("Kein Monitor gefunden!")
     return
 end
-
-safePrint("Gefundene Bridge-Peripheral:", bridgeName)
-local bridge = peripheral.wrap(bridgeName)
 if not bridge then
-    safePrint("FEHLER: konnte Peripheral '"..bridgeName.."' nicht wrap-en.")
+    mon.write("Kein me_bridge gefunden!")
     return
 end
 
--- Anzeigen der Methoden der gefundenen Bridge (zur Kontrolle)
-local okMeth, methods = pcall(peripheral.getMethods, bridgeName)
-if okMeth and methods then
-    safePrint("Methoden der Bridge:", textutils.serialize(methods))
-else
-    safePrint("Konnte Methoden der Bridge nicht lesen.")
+mon.setTextScale(1)
+mon.setBackgroundColor(colors.black)
+mon.clear()
+mon.setCursorPos(1,1)
+
+mon.write("=== ME Bridge Methoden ===")
+local y = 2
+
+-- Alle Methoden der Bridge auflisten
+local methods = peripheral.getMethods(peripheral.getName(bridge))
+for _, m in ipairs(methods) do
+    mon.setCursorPos(1,y)
+    mon.write(m)
+    y = y + 1
 end
 
--- Prüfe ob listCells vorhanden (ohne sie sofort aufzurufen)
-if not bridge.listCells then
-    safePrint("INFO: Diese Bridge hat keine listCells()-Funktion.")
-    -- Fallback: zeige total/used storage falls verfügbar
-    if type(bridge.getTotalItemStorage) == "function" then
-        local ok, total = pcall(function() return bridge.getTotalItemStorage() end)
-        local ok2, used = pcall(function() return bridge.getUsedItemStorage() end)
-        safePrint("Fallback getTotalItemStorage() ->", ok and tostring(total) or ("ERROR: "..tostring(total)))
-        safePrint("Fallback getUsedItemStorage()  ->", ok2 and tostring(used) or ("ERROR: "..tostring(used)))
+-- Optional: testweise craftables anzeigen
+if bridge.getCraftables then
+    local ok, craftables = pcall(bridge.getCraftables)
+    y = y + 1
+    mon.setCursorPos(1,y)
+    if ok and type(craftables) == "table" then
+        mon.write("Craftables: " .. tostring(#craftables))
     else
-        safePrint("Kein Fallback (getTotalItemStorage) vorhanden.")
-    end
-    return
-end
-
--- Safe call auf listCells()
-local ok, cellsOrErr = pcall(function() return bridge.listCells() end)
-if not ok then
-    safePrint("FEHLER beim Aufruf bridge.listCells():", tostring(cellsOrErr))
-    return
-end
-
-local cells = cellsOrErr
-if not cells then
-    safePrint("listCells() hat nil zurückgegeben.")
-    return
-end
-
-safePrint("listCells() returned type:", type(cells))
-safePrint("Raw dump of cells (serialize):")
-safePrint(textutils.serialize(cells))
-
--- Funktion zum extrahieren/normalisieren der wichtigsten Felder
-local function extractCellFields(cell)
-    if type(cell) ~= "table" then
-        return nil
-    end
-    local item = cell.item or cell.name or cell.cellName or cell["item"] or cell["cell"]
-    local cellType = cell.cellType or cell.type or cell["cell_type"] or cell["celltype"]
-    local bytesPerType = cell.bytesPerType or cell.bytes_per_type or cell.bytesPerType or cell.bytesPerType or cell.bytes
-    local totalBytes = cell.totalBytes or cell.total_bytes or cell.bytes or 0
-    return {
-        item = item,
-        cellType = cellType,
-        bytesPerType = bytesPerType,
-        totalBytes = totalBytes
-    }
-end
-
--- Falls die cells ein Array ist (ipairs), iteriere sequentiell, sonst mache pairs()
-local function isArray(t)
-    if type(t) ~= "table" then return false end
-    local i = 0
-    for _ in pairs(t) do
-        i = i + 1
-        if t[i] == nil then return false end
-    end
-    return true
-end
-
-safePrint("---- Parsed Cells ----")
-if isArray(cells) then
-    for i, cell in ipairs(cells) do
-        safePrint("Cell #"..i.." (raw):", textutils.serialize(cell))
-        local e = extractCellFields(cell)
-        if e then
-            safePrint(string.format("  parsed -> item=%s | cellType=%s | bytesPerType=%s | totalBytes=%s",
-                tostring(e.item), tostring(e.cellType), tostring(e.bytesPerType), tostring(e.totalBytes)))
-        else
-            safePrint("  parsed -> (not a table)")
-        end
-        safePrint("---------------------------")
-    end
-else
-    -- cells ist kein numerisches Array - liste keys
-    for k, cell in pairs(cells) do
-        safePrint("Cell key:", tostring(k))
-        safePrint("  raw:", textutils.serialize(cell))
-        local e = extractCellFields(cell)
-        if e then
-            safePrint(string.format("  parsed -> item=%s | cellType=%s | bytesPerType=%s | totalBytes=%s",
-                tostring(e.item), tostring(e.cellType), tostring(e.bytesPerType), tostring(e.totalBytes)))
-        end
-        safePrint("---------------------------")
+        mon.write("getCraftables -> Fehler oder nil")
     end
 end
 
-safePrint("---- Ende ----")
+-- Optional: CPUs anzeigen
+if bridge.getCraftingCPUs then
+    local ok, cpus = pcall(bridge.getCraftingCPUs)
+    y = y + 1
+    mon.setCursorPos(1,y)
+    if ok and type(cpus) == "table" then
+        mon.write("Crafting CPUs: " .. tostring(#cpus))
+    else
+        mon.write("getCraftingCPUs -> Fehler oder nil")
+    end
+end
