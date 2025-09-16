@@ -1,38 +1,142 @@
--- Test-Script für me_bridge.listCells()
--- Prüft, ob listCells verfügbar ist und zeigt alle Felder pro Cell an
+-- me_listcells_debug.lua
+-- Robust Debug-Script: prüft listCells(), zeigt Peripherals & alle Cell-Felder
+-- Speziell dafür gedacht, herauszufinden, wie deine me_bridge die Cells zurückgibt.
 
-local bridge = peripheral.find("me_bridge")
+local function safePrint(...)
+    print(...)
+end
 
-if not bridge then
-    print("Kein me_bridge gefunden!")
+safePrint("=== ME Bridge listCells Debug ===")
+
+-- Liste alle Peripherals kurz auf (damit du siehst, wie die Bridge heißt)
+local okNames, names = pcall(function() return peripheral.getNames() end)
+if not okNames or type(names) ~= "table" then
+    safePrint("WARN: konnte peripheral.getNames() nicht aufrufen.")
+else
+    safePrint("Peripherals found:", textutils.serialize(names))
+end
+
+-- Suche einen Peripheral, der listCells oder getTotalItemStorage anbietet
+local bridgeName = nil
+for _, name in ipairs(names or {}) do
+    local okMeth, methods = pcall(peripheral.getMethods, name)
+    if okMeth and type(methods) == "table" then
+        for _, m in ipairs(methods) do
+            if m == "listCells" or m == "getTotalItemStorage" or m == "getUsedItemStorage" then
+                bridgeName = name
+                break
+            end
+        end
+    end
+    if bridgeName then break end
+end
+
+if not bridgeName then
+    safePrint("KEINE geeignete ME-Bridge gefunden (suche nach listCells/getTotalItemStorage).")
+    safePrint("Wenn du weißt, wie die Bridge heißt, kannst du den Namen hier hardcoden.")
     return
 end
 
--- Prüfen ob listCells als Funktion existiert
+safePrint("Gefundene Bridge-Peripheral:", bridgeName)
+local bridge = peripheral.wrap(bridgeName)
+if not bridge then
+    safePrint("FEHLER: konnte Peripheral '"..bridgeName.."' nicht wrap-en.")
+    return
+end
+
+-- Anzeigen der Methoden der gefundenen Bridge (zur Kontrolle)
+local okMeth, methods = pcall(peripheral.getMethods, bridgeName)
+if okMeth and methods then
+    safePrint("Methoden der Bridge:", textutils.serialize(methods))
+else
+    safePrint("Konnte Methoden der Bridge nicht lesen.")
+end
+
+-- Prüfe ob listCells vorhanden (ohne sie sofort aufzurufen)
 if not bridge.listCells then
-    print("Diese me_bridge unterstützt listCells() nicht!")
+    safePrint("INFO: Diese Bridge hat keine listCells()-Funktion.")
+    -- Fallback: zeige total/used storage falls verfügbar
+    if type(bridge.getTotalItemStorage) == "function" then
+        local ok, total = pcall(function() return bridge.getTotalItemStorage() end)
+        local ok2, used = pcall(function() return bridge.getUsedItemStorage() end)
+        safePrint("Fallback getTotalItemStorage() ->", ok and tostring(total) or ("ERROR: "..tostring(total)))
+        safePrint("Fallback getUsedItemStorage()  ->", ok2 and tostring(used) or ("ERROR: "..tostring(used)))
+    else
+        safePrint("Kein Fallback (getTotalItemStorage) vorhanden.")
+    end
     return
 end
 
 -- Safe call auf listCells()
-local ok, cells = pcall(bridge.listCells, bridge)
+local ok, cellsOrErr = pcall(function() return bridge.listCells() end)
 if not ok then
-    print("Fehler bei listCells(): " .. tostring(cells))
+    safePrint("FEHLER beim Aufruf bridge.listCells():", tostring(cellsOrErr))
     return
 end
 
-if not cells or type(cells) ~= "table" then
-    print("listCells() hat nichts Sinnvolles zurückgegeben.")
+local cells = cellsOrErr
+if not cells then
+    safePrint("listCells() hat nil zurückgegeben.")
     return
 end
 
-print("----- ME Bridge Cells -----")
-for i, cell in ipairs(cells) do
-    print("Cell #" .. i)
-    print("  item:         " .. tostring(cell.item))
-    print("  cellType:     " .. tostring(cell.cellType))
-    print("  bytesPerType: " .. tostring(cell.bytesPerType))
-    print("  totalBytes:   " .. tostring(cell.totalBytes))
-    print("---------------------------")
+safePrint("listCells() returned type:", type(cells))
+safePrint("Raw dump of cells (serialize):")
+safePrint(textutils.serialize(cells))
+
+-- Funktion zum extrahieren/normalisieren der wichtigsten Felder
+local function extractCellFields(cell)
+    if type(cell) ~= "table" then
+        return nil
+    end
+    local item = cell.item or cell.name or cell.cellName or cell["item"] or cell["cell"]
+    local cellType = cell.cellType or cell.type or cell["cell_type"] or cell["celltype"]
+    local bytesPerType = cell.bytesPerType or cell.bytes_per_type or cell.bytesPerType or cell.bytesPerType or cell.bytes
+    local totalBytes = cell.totalBytes or cell.total_bytes or cell.bytes or 0
+    return {
+        item = item,
+        cellType = cellType,
+        bytesPerType = bytesPerType,
+        totalBytes = totalBytes
+    }
 end
-print("----- Ende -----")
+
+-- Falls die cells ein Array ist (ipairs), iteriere sequentiell, sonst mache pairs()
+local function isArray(t)
+    if type(t) ~= "table" then return false end
+    local i = 0
+    for _ in pairs(t) do
+        i = i + 1
+        if t[i] == nil then return false end
+    end
+    return true
+end
+
+safePrint("---- Parsed Cells ----")
+if isArray(cells) then
+    for i, cell in ipairs(cells) do
+        safePrint("Cell #"..i.." (raw):", textutils.serialize(cell))
+        local e = extractCellFields(cell)
+        if e then
+            safePrint(string.format("  parsed -> item=%s | cellType=%s | bytesPerType=%s | totalBytes=%s",
+                tostring(e.item), tostring(e.cellType), tostring(e.bytesPerType), tostring(e.totalBytes)))
+        else
+            safePrint("  parsed -> (not a table)")
+        end
+        safePrint("---------------------------")
+    end
+else
+    -- cells ist kein numerisches Array - liste keys
+    for k, cell in pairs(cells) do
+        safePrint("Cell key:", tostring(k))
+        safePrint("  raw:", textutils.serialize(cell))
+        local e = extractCellFields(cell)
+        if e then
+            safePrint(string.format("  parsed -> item=%s | cellType=%s | bytesPerType=%s | totalBytes=%s",
+                tostring(e.item), tostring(e.cellType), tostring(e.bytesPerType), tostring(e.totalBytes)))
+        end
+        safePrint("---------------------------")
+    end
+end
+
+safePrint("---- Ende ----")
