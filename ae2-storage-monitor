@@ -31,11 +31,11 @@ function getFilteredItemCellBytes(bridge, monitor, startLine)
     end
 
     if type(bridge.getCells) ~= "function" then
-        print("DEBUG: bridge.getCells() not available; falling back to getTotalItemStorage() if present")
+        print("DEBUG: bridge.getCells() not available; falling back to getTotalItemStorage()")
         local ok, fallback = safeCall(bridge.getTotalItemStorage)
         if ok and fallback then
-            print("DEBUG: Fallback total item storage:", tostring(fallback))
             if monitor then
+                monitor.setTextColor(colors.yellow)
                 monitor.setCursorPos(1, startLine)
                 monitor.write("Fallback Total Item Storage: " .. formatBytes(fallback))
             end
@@ -48,16 +48,28 @@ function getFilteredItemCellBytes(bridge, monitor, startLine)
     local ok, cellsOrErr = pcall(function() return bridge.getCells() end)
     if not ok then
         print("DEBUG: bridge.getCells() call failed:", tostring(cellsOrErr))
+        if monitor then
+            monitor.setTextColor(colors.red)
+            monitor.setCursorPos(1, startLine)
+            monitor.write("getCells() call failed: " .. tostring(cellsOrErr))
+        end
         return 0
     end
+
     local cells = cellsOrErr
     if not cells or type(cells) ~= "table" then
         print("DEBUG: bridge.getCells() returned nil or non-table")
+        if monitor then
+            monitor.setTextColor(colors.red)
+            monitor.setCursorPos(1, startLine)
+            monitor.write("getCells() returned nil or non-table")
+        end
         return 0
     end
 
     local sumTotal = 0
     local line = startLine or 15
+    monitor.setTextColor(colors.white)
     for i, cell in pairs(cells) do
         local ctype = cell.cellType or cell.type or "unknown"
         local isPartitioned = cell.isPartitioned or false
@@ -65,14 +77,12 @@ function getFilteredItemCellBytes(bridge, monitor, startLine)
         local totalBytes = cell.totalBytes or 0
         local cellName = cell.item or "<unknown>"
 
-        if monitor then
-            if line <= monitor.getSize() then
-                monitor.setCursorPos(1, line)
-                monitor.write(string.format("[%d] %s | Type: %s | Bytes: %s | Partitioned: %s | Precise: %s",
-                    i, cellName, tostring(ctype), formatBytes(totalBytes),
-                    tostring(isPartitioned), tostring(isPrecise)))
-                line = line + 1
-            end
+        if monitor and line <= monitor.getSize() then
+            monitor.setCursorPos(1, line)
+            monitor.write(string.format("[%d] %s | Type: %s | Bytes: %s | Partitioned: %s | Precise: %s",
+                i, cellName, tostring(ctype), formatBytes(totalBytes),
+                tostring(isPartitioned), tostring(isPrecise)))
+            line = line + 1
         end
 
         if tostring(ctype) == "item" and not (isPartitioned and isPrecise) then
@@ -101,7 +111,94 @@ function getItemStorage(monitor, startLine)
     return usedItems or 0, maxItems or 0
 end
 
--- Rest des Scripts unverändert, nur `getItemStorage()` anpassen:
--- In updateDisplay() rufst du jetzt auf:
--- local usedItems, maxItems = getItemStorage(monitor, 15)
--- Dann werden alle Cells auf dem Monitor angezeigt
+-- Function to calculate free fluid storage (robust)
+function getFluidStorage()
+    local bridge = peripheral.find("me_bridge")
+    if not bridge then return 0, 0 end
+
+    local okUsed, usedFluids = safeCall(bridge.getUsedFluidStorage)
+    if not okUsed then usedFluids = 0 end
+    local okTotal, maxFluids = safeCall(bridge.getTotalFluidStorage)
+    if not okTotal then maxFluids = 0 end
+
+    return usedFluids or 0, maxFluids or 0
+end
+
+-- Function to calculate free gas storage (robust)
+function getChemicalStorage()
+    local bridge = peripheral.find("me_bridge")
+    if not bridge then return 0, 0 end
+
+    local okUsed, usedGases = safeCall(bridge.getUsedChemicalStorage)
+    if not okUsed then usedGases = 0 end
+    local okTotal, maxGases = safeCall(bridge.getTotalChemicalStorage)
+    if not okTotal then maxGases = 0 end
+
+    return usedGases or 0, maxGases or 0
+end
+
+-- Function to center text on the monitor
+function centerText(monitor, text, line)
+    local w, _ = monitor.getSize()
+    local x = math.floor((w - #text) / 2) + 1
+    if x < 1 then x = 1 end
+    monitor.setCursorPos(x, line)
+    monitor.write(text)
+end
+
+-- Main display function
+function updateDisplay()
+    local monitor = peripheral.find("monitor")
+    if not monitor then
+        print("No monitor found.")
+        return
+    end
+
+    monitor.setTextScale(1)
+    monitor.clear()
+
+    while true do
+        monitor.clear()
+
+        -- Display item storage + cells
+        local usedItems, maxItems = getItemStorage(monitor, 15)
+        local freeItems = (maxItems or 0) - (usedItems or 0)
+        if freeItems < 0 then freeItems = 0 end
+        local percentUsedItems = (maxItems > 0) and ((usedItems / maxItems) * 100) or 0
+        local percentFreeItems = 100 - percentUsedItems
+
+        monitor.setTextColor(colors.yellow)
+        centerText(monitor, "Item Storage", 1)
+        centerText(monitor, string.format("Used: %s | Free: %s", formatBytes(usedItems), formatBytes(freeItems)), 2)
+        centerText(monitor, string.format("%.1f%% Used | %.1f%% Free", percentUsedItems, percentFreeItems), 3)
+
+        -- Display fluid storage
+        local usedFluids, maxFluids = getFluidStorage()
+        local freeFluids = (maxFluids or 0) - (usedFluids or 0)
+        if freeFluids < 0 then freeFluids = 0 end
+        local percentUsedFluids = (maxFluids > 0) and ((usedFluids / maxFluids) * 100) or 0
+        local percentFreeFluids = 100 - percentUsedFluids
+
+        monitor.setTextColor(colors.cyan)
+        centerText(monitor, "Fluid Storage", 5)
+        centerText(monitor, string.format("Used: %s | Free: %s", formatBytes(usedFluids), formatBytes(freeFluids)), 6)
+        centerText(monitor, string.format("%.1f%% Used | %.1f%% Free", percentUsedFluids, percentFreeFluids), 7)
+
+        -- Display gas storage
+        local usedGases, maxGases = getChemicalStorage()
+        local freeGases = (maxGases or 0) - (usedGases or 0)
+        if freeGases < 0 then freeGases = 0 end
+        local percentUsedGases = (maxGases > 0) and ((usedGases / maxGases) * 100) or 0
+        local percentFreeGases = 100 - percentUsedGases
+
+        monitor.setTextColor(colors.purple)
+        centerText(monitor, "Chemical Storage", 9)
+        centerText(monitor, string.format("Used: %s | Free: %s", formatBytes(usedGases), formatBytes(freeGases)), 10)
+        centerText(monitor, string.format("%.1f%% Used | %.1f%% Free", percentUsedGases, percentFreeGases), 11)
+
+        sleep(5)
+    end
+end
+
+-- Start the program
+updateDisplay()
