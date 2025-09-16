@@ -42,24 +42,27 @@ local function getChemicalStorage()
     return used, max
 end
 
--- Function to get number of drives
-local function getDriveCount()
+-- Function to get list of drives
+local function getDrives()
     local bridge = peripheral.find("me_bridge")
     if bridge then
-        return #bridge.listDrives()
+        return bridge.listDrives()
     end
-    return 0
+    return {}
 end
 
--- Function to get storage per drive (for fluids and chemicals)
+-- Function to get total fluid and chemical cells
 local function getDriveCells()
     local bridge = peripheral.find("me_bridge")
     local fluidCells, chemicalCells = 0, 0
     if bridge then
-        local drives = bridge.listDrives()
+        local drives = getDrives()
         for _, drive in pairs(drives) do
-            fluidCells = fluidCells + (drive.fluid or 0)
-            chemicalCells = chemicalCells + (drive.chemical or 0)
+            if drive.type == "fluid" then
+                fluidCells = fluidCells + bridge.getDriveCells(drive.address)
+            elseif drive.type == "chemical" then
+                chemicalCells = chemicalCells + bridge.getDriveCells(drive.address)
+            end
         end
     end
     return fluidCells, chemicalCells
@@ -87,8 +90,8 @@ local function updateDisplay()
         monitor.clear()
 
         -- Drives count
-        local driveCount = getDriveCount()
-        centerText(monitor, "Drives: " .. driveCount, 1)
+        local drives = getDrives()
+        centerText(monitor, "Drives: " .. #drives, 1)
         monitor.setCursorPos(1, 2) -- empty line
 
         -- Item storage
