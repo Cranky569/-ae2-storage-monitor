@@ -9,7 +9,7 @@ if not bridge then
 end
 
 -- Prüfen ob listCells existiert
-if not bridge.listCells then
+if not bridge.listCells() then
     print("Diese me_bridge unterstützt listCells() nicht!")
     return
 end
