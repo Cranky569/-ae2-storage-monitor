@@ -1,6 +1,7 @@
--- me_bridge_storage_monitor.lua
+-- me_bridge_storage_monitor.lua (angepasst)
 -- Zeigt Item, Fluid und Chemical Storage auf dem Monitor an
 -- Partitioned + Precise Zellen werden korrekt vom Free Storage abgezogen
+-- Extrahiert Namen korrekt, auch wenn cell.item eine Tabelle ist
 
 local function formatBytes(bytes)
     if bytes >= 1000000 then
@@ -45,6 +46,17 @@ local function monPrint(text)
     cursorY = cursorY + 1
 end
 
+local function getCellName(cell)
+    if type(cell.item) == "table" then
+        -- Versuche id oder displayName zu nutzen
+        return cell.item.id or cell.item.displayName or "unknown"
+    elseif type(cell.name) == "table" then
+        return cell.name.id or cell.name.displayName or "unknown"
+    else
+        return cell.item or cell.name or "unknown"
+    end
+end
+
 local function processStorage(cellType)
     local bridge = peripheral.find("me_bridge")
     if not bridge then
@@ -75,7 +87,7 @@ local function processStorage(cellType)
             for i, cell in ipairs(cells) do
                 local ctype = cell.cellType or cell.type or cell["cell_type"] or "nil"
                 if ctype == cellType then
-                    local item = cell.item or cell.name or "nil"
+                    local name = getCellName(cell)
                     local totalBytes = cell.totalBytes or cell.bytes or 0
                     local partitioned = cell.isPartitioned or cell.partitioned or false
                     local precise = cell.isPrecise or cell.precise or false
@@ -87,8 +99,8 @@ local function processStorage(cellType)
                     end
 
                     monPrint(string.format(
-                        "Cell #%d: item=%s | totalBytes=%s | Partitioned=%s | Precise=%s",
-                        i, item, formatBytes(totalBytes), tostring(partitioned), tostring(precise)
+                        "Cell #%d: name=%s | totalBytes=%s | Partitioned=%s | Precise=%s",
+                        i, name, formatBytes(totalBytes), tostring(partitioned), tostring(precise)
                     ))
                 end
             end
