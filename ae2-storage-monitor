@@ -1,121 +1,45 @@
--- Function to format large numbers into a human-readable format
-function formatBytes(bytes)
-    if bytes >= 1000000 then
-        return string.format("%.1fM", bytes / 1000000)
-    elseif bytes >= 1000 then
-        return string.format("%.1fK", bytes / 1000)
-    else
-        return tostring(bytes)
-    end
-end
-
--- Safe call wrapper
-local function safeCall(fn, ...)
-    if type(fn) ~= "function" then return false, 0 end
-    local ok, res = pcall(fn, ...)
-    if not ok then return false, 0 end
-    return true, res or 0
-end
-
--- Function to calculate storage (Used from Bridge, Free ignoring Precise)
-local function getStorage(cellType)
+-- Funktion, um Fluid Storage zu berechnen (Used komplett, Free ohne Precise-Zellen)
+function getFluidStorage()
     local bridge = peripheral.find("me_bridge")
     if not bridge then return 0, 0 end
 
-    local used = 0
-    local free = 0
+    -- Used immer komplett
+    local _, usedFluids = safeCall(bridge.getUsedFluidStorage)
 
-    if cellType == "item" then
-        _, used = safeCall(bridge.getUsedItemStorage)
-    elseif cellType == "fluid" then
-        _, used = safeCall(bridge.getUsedFluidStorage)
-    elseif cellType == "chemical" then
-        _, used = safeCall(bridge.getUsedChemicalStorage)
-    end
-
-    -- Calculate free storage ignoring Precise cells
+    local freeFluids = 0
     if type(bridge.getCells) == "function" then
         local ok, cells = pcall(bridge.getCells, bridge)
         if ok and type(cells) == "table" then
             for _, cell in pairs(cells) do
                 local ctype = cell.cellType or cell.type
-                local totalBytes = cell.totalBytes or 0
-                local usedBytes = cell.usedBytes or 0
                 local isPrecise = cell.isPrecise or false
 
-                if tostring(ctype) == cellType and not isPrecise then
-                    free = free + (totalBytes - usedBytes)
+                if tostring(ctype) == "fluid" and not isPrecise then
+                    -- sichere Abfrage des verfügbaren Speichers
+                    local available = 0
+                    if type(cell.getAvailableBytes) == "function" then
+                        local ok2, bytes = pcall(cell.getAvailableBytes, cell)
+                        if ok2 and bytes then
+                            available = bytes
+                        end
+                    else
+                        -- fallback falls getAvailableBytes nicht existiert
+                        local total = cell.totalBytes or 0
+                        local used = cell.usedBytes or 0
+                        available = total - used
+                    end
+                    freeFluids = freeFluids + available
                 end
             end
         end
     else
-        -- Fallback
-        local ok, total = nil, 0
-        if cellType == "item" then ok, total = safeCall(bridge.getTotalItemStorage)
-        elseif cellType == "fluid" then ok, total = safeCall(bridge.getTotalFluidStorage)
-        elseif cellType == "chemical" then ok, total = safeCall(bridge.getTotalChemicalStorage) end
-        if ok then free = total - used end
+        -- Fallback: falls getCells nicht verfügbar ist
+        local ok, total = safeCall(bridge.getTotalFluidStorage)
+        if ok then freeFluids = total - usedFluids end
     end
 
-    -- Safety: free cannot be negative
-    if free < 0 then free = 0 end
+    -- Sicherheit: Free darf nicht negativ sein
+    if freeFluids < 0 then freeFluids = 0 end
 
-    return used, free
+    return usedFluids, freeFluids
 end
-
--- Function to center text on the monitor
-local function centerText(monitor, text, line)
-    local w, _ = monitor.getSize()
-    local x = math.floor((w - #text) / 2) + 1
-    if x < 1 then x = 1 end
-    monitor.setCursorPos(x, line)
-    monitor.write(text)
-end
-
--- Main display loop
-function updateDisplay()
-    local monitor = peripheral.find("monitor")
-    if not monitor then
-        print("No monitor found.")
-        return
-    end
-
-    monitor.setTextScale(1)
-    monitor.clear()
-
-    while true do
-        monitor.clear()
-
-        -- Items
-        local usedItems, freeItems = getStorage("item")
-        local percentUsedItems = (usedItems + freeItems > 0) and (usedItems / (usedItems + freeItems) * 100) or 0
-        local percentFreeItems = 100 - percentUsedItems
-        monitor.setTextColor(colors.yellow)
-        centerText(monitor, "Item Storage", 1)
-        centerText(monitor, string.format("Used: %s | Free: %s", formatBytes(usedItems), formatBytes(freeItems)), 2)
-        centerText(monitor, string.format("%.1f%% Used | %.1f%% Free", percentUsedItems, percentFreeItems), 3)
-
-        -- Fluids
-        local usedFluids, freeFluids = getStorage("fluid")
-        local percentUsedFluids = (usedFluids + freeFluids > 0) and (usedFluids / (usedFluids + freeFluids) * 100) or 0
-        local percentFreeFluids = 100 - percentUsedFluids
-        monitor.setTextColor(colors.cyan)
-        centerText(monitor, "Fluid Storage", 5)
-        centerText(monitor, string.format("Used: %s | Free: %s", formatBytes(usedFluids), formatBytes(freeFluids)), 6)
-        centerText(monitor, string.format("%.1f%% Used | %.1f%% Free", percentUsedFluids, percentFreeFluids), 7)
-
-        -- Chemicals
-        local usedGases, freeGases = getStorage("chemical")
-        local percentUsedGases = (usedGases + freeGases > 0) and (usedGases / (usedGases + freeGases) * 100) or 0
-        local percentFreeGases = 100 - percentUsedGases
-        monitor.setTextColor(colors.purple)
-        centerText(monitor, "Chemical Storage", 9)
-        centerText(monitor, string.format("Used: %s | Free: %s", formatBytes(usedGases), formatBytes(freeGases)), 10)
-        centerText(monitor, string.format("%.1f%% Used | %.1f%% Free", percentUsedGases, percentFreeGases), 11)
-
-        sleep(5)
-    end
-end
-
--- Start the program
-updateDisplay()
