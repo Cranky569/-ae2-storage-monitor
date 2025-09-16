@@ -1,6 +1,10 @@
 -- Function to format large numbers
 local function formatBytes(bytes)
-    if bytes >= 1e6 then
+    if bytes >= 1e12 then
+        return string.format("%.1fT", bytes / 1e12)
+    elseif bytes >= 1e9 then
+        return string.format("%.1fB", bytes / 1e9)
+    elseif bytes >= 1e6 then
         return string.format("%.1fM", bytes / 1e6)
     elseif bytes >= 1e3 then
         return string.format("%.1fK", bytes / 1e3)
@@ -42,6 +46,22 @@ local function getChemicalStorage()
     return used, max
 end
 
+-- Get Forge Energy Storage
+local function getFEStorage()
+    local used, max = 0, 0
+    local bridge = peripheral.find("me_bridge")
+    if bridge then
+        local drives = bridge.getDrives()
+        for _, drive in ipairs(drives) do
+            if drive.name == "appflux:fe_qm_cell" then
+                used = used + (drive.energy or 0)
+                max = max + (drive.maxEnergy or 0)
+            end
+        end
+    end
+    return used, max
+end
+
 -- Get number of drives
 local function getDriveCount()
     local bridge = peripheral.find("me_bridge")
@@ -76,8 +96,9 @@ local function updateDisplay()
 
         -- Drives
         local driveCount = getDriveCount()
+        monitor.setTextColor(colors.white)
         centerText(monitor, "Drives: " .. driveCount, currentLine)
-        currentLine = currentLine + 2 -- blank line after Drives
+        currentLine = currentLine + 2
 
         -- Item Storage
         local usedItems, maxItems = getItemStorage()
@@ -86,12 +107,11 @@ local function updateDisplay()
         local percentFreeItems = 100 - percentUsedItems
         monitor.setTextColor(colors.yellow)
         centerText(monitor, "Item Storage", currentLine)
-        currentLine = currentLine + 1
-        currentLine = currentLine + 1 -- blank line instead of Cells
+        currentLine = currentLine + 2
         centerText(monitor, string.format("Used: %s | Free: %s", formatBytes(usedItems), formatBytes(freeItems)), currentLine)
         currentLine = currentLine + 1
         centerText(monitor, string.format("%.1f%% Used | %.1f%% Free", percentUsedItems, percentFreeItems), currentLine)
-        currentLine = currentLine + 2 -- blank line after Item Storage
+        currentLine = currentLine + 2
 
         -- Fluid Storage
         local usedFluids, maxFluids = getFluidStorage()
@@ -100,12 +120,11 @@ local function updateDisplay()
         local percentFreeFluids = 100 - percentUsedFluids
         monitor.setTextColor(colors.cyan)
         centerText(monitor, "Fluid Storage", currentLine)
-        currentLine = currentLine + 1
-        currentLine = currentLine + 1 -- blank line instead of Cells
+        currentLine = currentLine + 2
         centerText(monitor, string.format("Used: %s | Free: %s", formatBytes(usedFluids), formatBytes(freeFluids)), currentLine)
         currentLine = currentLine + 1
         centerText(monitor, string.format("%.1f%% Used | %.1f%% Free", percentUsedFluids, percentFreeFluids), currentLine)
-        currentLine = currentLine + 2 -- blank line after Fluid Storage
+        currentLine = currentLine + 2
 
         -- Chemical Storage
         local usedGases, maxGases = getChemicalStorage()
@@ -114,11 +133,23 @@ local function updateDisplay()
         local percentFreeGases = 100 - percentUsedGases
         monitor.setTextColor(colors.purple)
         centerText(monitor, "Chemical Storage", currentLine)
-        currentLine = currentLine + 1
-        currentLine = currentLine + 1 -- blank line instead of Cells
+        currentLine = currentLine + 2
         centerText(monitor, string.format("Used: %s | Free: %s", formatBytes(usedGases), formatBytes(freeGases)), currentLine)
         currentLine = currentLine + 1
         centerText(monitor, string.format("%.1f%% Used | %.1f%% Free", percentUsedGases, percentFreeGases), currentLine)
+        currentLine = currentLine + 2
+
+        -- Forge Energy Storage
+        local usedFE, maxFE = getFEStorage()
+        local freeFE = maxFE - usedFE
+        local percentUsedFE = (maxFE > 0) and ((usedFE / maxFE) * 100) or 0
+        local percentFreeFE = 100 - percentUsedFE
+        monitor.setTextColor(colors.red)
+        centerText(monitor, "Forge Energy Storage", currentLine)
+        currentLine = currentLine + 2
+        centerText(monitor, string.format("Used: %s | Free: %s", formatBytes(usedFE), formatBytes(freeFE)), currentLine)
+        currentLine = currentLine + 1
+        centerText(monitor, string.format("%.1f%% Used | %.1f%% Free", percentUsedFE, percentFreeFE), currentLine)
 
         sleep(5)
     end
