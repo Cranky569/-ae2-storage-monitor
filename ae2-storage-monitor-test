@@ -46,7 +46,7 @@ end
 local function getDriveCount()
     local bridge = peripheral.find("me_bridge")
     if bridge then
-        local drives = bridge.listCells() -- listCells() liefert alle Zellen, die Drives repräsentieren
+        local drives = bridge.getDrives() -- getDrives() liefert alle Drives zurück
         return #drives
     end
     return 0
