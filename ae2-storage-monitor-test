@@ -1,53 +1,60 @@
--- Funktion zur Formatierung großer Zahlen
+-- Function to format large numbers
 local function formatBytes(bytes)
-    if bytes >= 1e12 then
-        return string.format("%.2fT", bytes / 1e12)
-    elseif bytes >= 1e9 then
-        return string.format("%.2fG", bytes / 1e9)
-    elseif bytes >= 1e6 then
-        return string.format("%.2fM", bytes / 1e6)
+    if bytes >= 1e6 then
+        return string.format("%.1fM", bytes / 1e6)
     elseif bytes >= 1e3 then
-        return string.format("%.2fK", bytes / 1e3)
+        return string.format("%.1fK", bytes / 1e3)
     else
         return tostring(bytes)
     end
 end
 
--- Funktion zur zentralisierten Textausgabe
-local function writeCentered(monitor, text, y, color)
+-- Function to calculate free item storage
+local function getItemStorage()
+    local used, max = 0, 0
+    local bridge = peripheral.find("me_bridge")
+    if bridge then
+        used = bridge.getUsedItemStorage()
+        max = bridge.getTotalItemStorage()
+    end
+    return used, max
+end
+
+-- Function to calculate free fluid storage
+local function getFluidStorage()
+    local used, max = 0, 0
+    local bridge = peripheral.find("me_bridge")
+    if bridge then
+        used = bridge.getUsedFluidStorage()
+        max = bridge.getTotalFluidStorage()
+    end
+    return used, max
+end
+
+-- Function to calculate free chemical/gas storage
+local function getChemicalStorage()
+    local used, max = 0, 0
+    local bridge = peripheral.find("me_bridge")
+    if bridge then
+        used = bridge.getUsedChemicalStorage()
+        max = bridge.getTotalChemicalStorage()
+    end
+    return used, max
+end
+
+-- Function to center text on the monitor
+local function centerText(monitor, text, line)
     local w, _ = monitor.getSize()
     local x = math.floor((w - #text) / 2) + 1
-    monitor.setCursorPos(x, y)
-    if color then monitor.setTextColor(color) end
+    monitor.setCursorPos(x, line)
     monitor.write(text)
-    monitor.setTextColor(colors.white)
 end
 
--- Funktion zur Anzeige der Fortschrittsanzeige
-local function drawProgressBar(monitor, y, fraction, color)
-    local w, _ = monitor.getSize()
-    local barWidth = w - 4
-    local filled = math.floor(barWidth * fraction)
-    monitor.setCursorPos(3, y)
-    monitor.setBackgroundColor(color)
-    monitor.write(string.rep(" ", filled))
-    monitor.setBackgroundColor(colors.gray)
-    monitor.write(string.rep(" ", barWidth - filled))
-    monitor.setBackgroundColor(colors.black)
-end
-
--- Hauptprogramm
+-- Main display program
 local function updateDisplay()
-    local monitor = peripheral.wrap("monitor")
+    local monitor = peripheral.find("monitor")
     if not monitor then
-        print("Kein Monitor gefunden.")
-        return
-    end
-
-    local bridge = peripheral.wrap("me_bridge")
-    if not bridge then
-        print("Kein ME Bridge gefunden.")
-        return
+        error("No monitor found! Make sure a monitor is connected.")
     end
 
     monitor.setTextScale(2)
@@ -55,64 +62,40 @@ local function updateDisplay()
 
     while true do
         monitor.clear()
-        local y = 1
-        writeCentered(monitor, "ME Energie Monitor", y, colors.yellow)
-        y = y + 2
 
-        -- Anzeige des gespeicherten Stroms
-        local okStored, stored = pcall(function() return bridge.getStoredEnergy() end)
-        local okCap, capacity = pcall(function() return bridge.getEnergyCapacity() end)
-        if okStored and type(stored) == "number" then
-            writeCentered(monitor, "Gespeicherter Strom: " .. formatBytes(stored) .. " AE", y, colors.green)
-            if okCap and type(capacity) == "number" and capacity > 0 then
-                drawProgressBar(monitor, y + 1, stored / capacity, colors.green)
-            end
-            y = y + 2
-        else
-            writeCentered(monitor, "Gespeicherter Strom: N/A", y, colors.red)
-            y = y + 2
-        end
+        -- Item storage
+        local usedItems, maxItems = getItemStorage()
+        local freeItems = maxItems - usedItems
+        local percentUsedItems = (maxItems > 0) and ((usedItems / maxItems) * 100) or 0
+        local percentFreeItems = 100 - percentUsedItems
+        monitor.setTextColor(colors.yellow)
+        centerText(monitor, "Item Storage", 1)
+        centerText(monitor, string.format("Used: %s | Free: %s", formatBytes(usedItems), formatBytes(freeItems)), 2)
+        centerText(monitor, string.format("%.1f%% Used | %.1f%% Free", percentUsedItems, percentFreeItems), 3)
 
-        -- Anzeige der maximalen Stromkapazität
-        if okCap and type(capacity) == "number" then
-            writeCentered(monitor, "Maximale Kapazität: " .. formatBytes(capacity) .. " AE", y, colors.green)
-            y = y + 2
-        else
-            writeCentered(monitor, "Maximale Kapazität: N/A", y, colors.red)
-            y = y + 2
-        end
+        -- Fluid storage
+        local usedFluids, maxFluids = getFluidStorage()
+        local freeFluids = maxFluids - usedFluids
+        local percentUsedFluids = (maxFluids > 0) and ((usedFluids / maxFluids) * 100) or 0
+        local percentFreeFluids = 100 - percentUsedFluids
+        monitor.setTextColor(colors.cyan)
+        centerText(monitor, "Fluid Storage", 5)
+        centerText(monitor, string.format("Used: %s | Free: %s", formatBytes(usedFluids), formatBytes(freeFluids)), 6)
+        centerText(monitor, string.format("%.1f%% Used | %.1f%% Free", percentUsedFluids, percentFreeFluids), 7)
 
-        -- Anzeige des Kanalpassivverbrauchs
-        local okDrain, drain = pcall(function() return bridge.getChannelPassiveDrain() end)
-        if okDrain and type(drain) == "number" then
-            writeCentered(monitor, "Kanalpassivverbrauch: " .. formatBytes(drain) .. " AE/t", y, colors.orange)
-        else
-            writeCentered(monitor, "Kanalpassivverbrauch: N/A", y, colors.red)
-            drain = 0
-        end
-        y = y + 2
+        -- Chemical/Gas storage
+        local usedGases, maxGases = getChemicalStorage()
+        local freeGases = maxGases - usedGases
+        local percentUsedGases = (maxGases > 0) and ((usedGases / maxGases) * 100) or 0
+        local percentFreeGases = 100 - percentUsedGases
+        monitor.setTextColor(colors.purple)
+        centerText(monitor, "Chemical Storage", 9)
+        centerText(monitor, string.format("Used: %s | Free: %s", formatBytes(usedGases), formatBytes(freeGases)), 10)
+        centerText(monitor, string.format("%.1f%% Used | %.1f%% Free", percentUsedGases, percentFreeGases), 11)
 
-        -- Anzeige des Energieverbrauchs
-        local okUsage, usage = pcall(function() return bridge.getEnergyUsage() end)
-        if okUsage and type(usage) == "number" then
-            writeCentered(monitor, "Energieverbrauch: " .. formatBytes(usage) .. " AE/t", y, colors.red)
-        else
-            writeCentered(monitor, "Energieverbrauch: N/A", y, colors.red)
-            usage = 0
-        end
-        y = y + 2
-
-        -- Anzeige der Energieerzeugung
-        local okGen, gen = pcall(function() return bridge.getAvgPowerInjection() end)
-        if not okGen or gen == nil then
-            gen = usage + drain
-        end
-        writeCentered(monitor, "Energieerzeugung: " .. (gen and formatBytes(gen) or "N/A") .. " AE/t", y, colors.lightBlue)
-        y = y + 2
-
-        sleep(2)
+        sleep(5) -- Refresh every 5 seconds
     end
 end
 
--- Starte das Programm
+-- Start the display program
 updateDisplay()
