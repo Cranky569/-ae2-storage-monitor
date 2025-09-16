@@ -1,9 +1,4 @@
 -- me_bridge_storage_monitor.lua
--- Zeigt Fluid und Chemical Storage auf dem Monitor an
--- Partitioned + Precise Zellen werden korrekt vom Free Storage abgezogen
--- Included Precise Zellen werden NICHT vom Free Storage abgezogen
--- Unter Chemical Storage wird zusätzlich angezeigt, wie Partitioned geprüft wird
-
 local function formatBytes(bytes)
     if bytes >= 1000000 then
         return string.format("%.1fM", bytes / 1000000)
@@ -69,7 +64,6 @@ local function processStorage(cellType)
     usedTotal = okUsed and used or 0
     freeTotal = okTotal and total or 0
 
-    -- Zellen durchgehen
     if type(bridge.getCells) == "function" then
         local okCells, cells = pcall(bridge.getCells, bridge)
         if okCells and type(cells) == "table" then
@@ -83,7 +77,6 @@ local function processStorage(cellType)
                     local precise = cell.isPrecise or cell.precise or false
                     local includePrecise = cell.isIncludedPrecise or cell.includePrecise or false
 
-                    -- Nur vom Free abziehen, wenn Partitioned AND Precise UND NICHT Included Precise
                     if partitioned and precise and not includePrecise and totalBytes > 0 then
                         freeTotal = freeTotal - totalBytes
                         if freeTotal < 0 then freeTotal = 0 end
@@ -129,7 +122,7 @@ while true do
     centerText("Chemical Storage", cursorY); cursorY = cursorY + 1
     centerText(string.format("Used: %s | Free: %s", formatBytes(usedGases), formatBytes(freeGases)), cursorY); cursorY = cursorY + 1
 
-    -- Zusatzinfos unter Chemical Storage
+    -- Partition-Prüfung unter Chemical Storage
     local bridge = peripheral.find("me_bridge")
     if bridge then
         monPrint("=== Partition-Prüfung Info ===")
@@ -140,9 +133,9 @@ while true do
                 monPrint("- " .. m)
             end
         end
-        monPrint("Partitioned wird über: cell.isPartitioned (oder cell.partitioned) geprüft")
-        monPrint("Precise wird über: cell.isPrecise (oder cell.precise) geprüft")
-        monPrint("IncludedPrecise wird über: cell.isIncludedPrecise (oder cell.includePrecise) geprüft")
+        monPrint("Partitioned wird geprüft über: cell.isPartitioned (oder cell.partitioned)")
+        monPrint("Precise wird geprüft über: cell.isPrecise (oder cell.precise)")
+        monPrint("IncludedPrecise wird geprüft über: cell.isIncludedPrecise (oder cell.includePrecise)")
     end
 
     sleep(5)
