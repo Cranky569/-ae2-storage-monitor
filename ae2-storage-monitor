@@ -1,56 +1,8 @@
--- me_bridge_chemical_debug.lua
--- Zeigt auf dem Monitor alle Methoden und Felder, die getAvailableChemicalStorage (oder ähnliche) nutzen könnte
-
-local mon = peripheral.find("monitor")
-local bridge = peripheral.find("me_bridge")
-
-if not mon then
-    print("Kein Monitor gefunden!")
-    return
-end
-
-if not bridge then
-    mon.clear()
-    mon.setCursorPos(1,1)
-    mon.write("Kein me_bridge gefunden!")
-    return
-end
-
--- Monitor vorbereiten
-mon.clear()
-mon.setBackgroundColor(colors.black)
-mon.setTextColor(colors.white)
-mon.setTextScale(1)
-local w, h = mon.getSize()
-local cursorY = 1
-
-local function monPrint(text)
-    if cursorY > h then
-        mon.scroll(1)
-        cursorY = h
-        mon.setCursorPos(1, cursorY)
-        mon.clearLine()
-    end
-    mon.setCursorPos(1, cursorY)
-    mon.write(text)
-    cursorY = cursorY + 1
-end
-
--- Nur Methoden, die getChemicalStorage oder ähnliches enthalten
+-- Nur relevante Methoden für Chemical Storage anzeigen
 monPrint("=== ME Bridge Methoden für Chemical Storage ===")
 local methods = peripheral.getMethods(peripheral.getName(bridge))
 for _, m in ipairs(methods) do
-    if string.find(string.lower(m), "chemical") or string.find(string.lower(m), "get") then
+    if m == "getUsedChemicalStorage" or m == "getTotalChemicalStorage" then
         monPrint("- " .. m)
     end
 end
-
--- Mögliche Felder, die getAvailableChemicalStorage nutzen könnte
-monPrint("=== Mögliche Felder für getAvailableChemicalStorage ===")
-monPrint("- isPartitioned / partitioned")
-monPrint("- isPrecise / precise")
-monPrint("- isIncludedPrecise / includePrecise")
-monPrint("- isExcluded / excluded")
-monPrint("- totalBytes / bytes")
-monPrint("- cellType / type")
-monPrint("- item / name")
