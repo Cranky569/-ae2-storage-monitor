@@ -1,4 +1,4 @@
--- Function to format large numbers
+-- Funktion zur Formatierung großer Zahlen
 local function formatBytes(bytes)
     if bytes >= 1e6 then
         return string.format("%.1fM", bytes / 1e6)
@@ -9,7 +9,7 @@ local function formatBytes(bytes)
     end
 end
 
--- Function to calculate free item storage
+-- Funktion zur Berechnung des freien Item-Speichers
 local function getItemStorage()
     local used, max = 0, 0
     local bridge = peripheral.find("me_bridge")
@@ -20,7 +20,7 @@ local function getItemStorage()
     return used, max
 end
 
--- Function to calculate free fluid storage
+-- Funktion zur Berechnung des freien Fluid-Speichers
 local function getFluidStorage()
     local used, max = 0, 0
     local bridge = peripheral.find("me_bridge")
@@ -31,7 +31,7 @@ local function getFluidStorage()
     return used, max
 end
 
--- Function to calculate free chemical/gas storage
+-- Funktion zur Berechnung des freien Chemical/Gas-Speichers
 local function getChemicalStorage()
     local used, max = 0, 0
     local bridge = peripheral.find("me_bridge")
@@ -42,7 +42,17 @@ local function getChemicalStorage()
     return used, max
 end
 
--- Function to center text on the monitor
+-- Funktion zur Ermittlung der Anzahl der Drives
+local function getDriveCount()
+    local bridge = peripheral.find("me_bridge")
+    if bridge then
+        local drives = bridge.getDrives() -- getDrives() liefert alle Drives zurück
+        return #drives
+    end
+    return 0
+end
+
+-- Funktion zum Zentrieren von Text auf dem Monitor
 local function centerText(monitor, text, line)
     local w, _ = monitor.getSize()
     local x = math.floor((w - #text) / 2) + 1
@@ -50,7 +60,7 @@ local function centerText(monitor, text, line)
     monitor.write(text)
 end
 
--- Main display program
+-- Hauptanzeigeprogramm
 local function updateDisplay()
     local monitor = peripheral.find("monitor")
     if not monitor then
@@ -63,39 +73,44 @@ local function updateDisplay()
     while true do
         monitor.clear()
 
-        -- Item storage
+        -- Zeile 1: Anzahl der Drives
+        local driveCount = getDriveCount()
+        centerText(monitor, "Drives: " .. driveCount, 1)
+        monitor.setCursorPos(1, 2) -- Zeile 2 leer
+
+        -- Item Storage
         local usedItems, maxItems = getItemStorage()
         local freeItems = maxItems - usedItems
         local percentUsedItems = (maxItems > 0) and ((usedItems / maxItems) * 100) or 0
         local percentFreeItems = 100 - percentUsedItems
         monitor.setTextColor(colors.yellow)
-        centerText(monitor, "Item Storage", 1)
-        centerText(monitor, string.format("Used: %s | Free: %s", formatBytes(usedItems), formatBytes(freeItems)), 2)
-        centerText(monitor, string.format("%.1f%% Used | %.1f%% Free", percentUsedItems, percentFreeItems), 3)
+        centerText(monitor, "Item Storage", 3)
+        centerText(monitor, string.format("Used: %s | Free: %s", formatBytes(usedItems), formatBytes(freeItems)), 4)
+        centerText(monitor, string.format("%.1f%% Used | %.1f%% Free", percentUsedItems, percentFreeItems), 5)
 
-        -- Fluid storage
+        -- Fluid Storage
         local usedFluids, maxFluids = getFluidStorage()
         local freeFluids = maxFluids - usedFluids
         local percentUsedFluids = (maxFluids > 0) and ((usedFluids / maxFluids) * 100) or 0
         local percentFreeFluids = 100 - percentUsedFluids
         monitor.setTextColor(colors.cyan)
-        centerText(monitor, "Fluid Storage", 5)
-        centerText(monitor, string.format("Used: %s | Free: %s", formatBytes(usedFluids), formatBytes(freeFluids)), 6)
-        centerText(monitor, string.format("%.1f%% Used | %.1f%% Free", percentUsedFluids, percentFreeFluids), 7)
+        centerText(monitor, "Fluid Storage", 7)
+        centerText(monitor, string.format("Used: %s | Free: %s", formatBytes(usedFluids), formatBytes(freeFluids)), 8)
+        centerText(monitor, string.format("%.1f%% Used | %.1f%% Free", percentUsedFluids, percentFreeFluids), 9)
 
-        -- Chemical/Gas storage
+        -- Chemical/Gas Storage
         local usedGases, maxGases = getChemicalStorage()
         local freeGases = maxGases - usedGases
         local percentUsedGases = (maxGases > 0) and ((usedGases / maxGases) * 100) or 0
         local percentFreeGases = 100 - percentUsedGases
         monitor.setTextColor(colors.purple)
-        centerText(monitor, "Chemical Storage", 9)
-        centerText(monitor, string.format("Used: %s | Free: %s", formatBytes(usedGases), formatBytes(freeGases)), 10)
-        centerText(monitor, string.format("%.1f%% Used | %.1f%% Free", percentUsedGases, percentFreeGases), 11)
+        centerText(monitor, "Chemical Storage", 11)
+        centerText(monitor, string.format("Used: %s | Free: %s", formatBytes(usedGases), formatBytes(freeGases)), 12)
+        centerText(monitor, string.format("%.1f%% Used | %.1f%% Free", percentUsedGases, percentFreeGases), 13)
 
-        sleep(5) -- Refresh every 5 seconds
+        sleep(5) -- Refresh alle 5 Sekunden
     end
 end
 
--- Start the display program
+-- Start des Anzeigeprogramms
 updateDisplay()
