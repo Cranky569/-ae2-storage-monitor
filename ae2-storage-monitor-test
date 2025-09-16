@@ -85,11 +85,12 @@ local function updateDisplay()
 
     while true do
         monitor.clear()
+        local currentLine = 1
 
         -- Drives
         local driveCount = getDriveCount()
-        centerText(monitor, "Drives: " .. driveCount, 1)
-        monitor.setCursorPos(1, 2) -- leer
+        centerText(monitor, "Drives: " .. driveCount, currentLine)
+        currentLine = currentLine + 2 -- Leerzeile nach Drives
 
         -- Item Storage
         local usedItems, maxItems = getItemStorage()
@@ -97,10 +98,14 @@ local function updateDisplay()
         local percentUsedItems = (maxItems > 0) and ((usedItems / maxItems) * 100) or 0
         local percentFreeItems = 100 - percentUsedItems
         monitor.setTextColor(colors.yellow)
-        centerText(monitor, "Item Storage", 3)
-        centerText(monitor, "Cells: " .. getCellsPerType("item"), 4)
-        centerText(monitor, string.format("Used: %s | Free: %s", formatBytes(usedItems), formatBytes(freeItems)), 5)
-        centerText(monitor, string.format("%.1f%% Used | %.1f%% Free", percentUsedItems, percentFreeItems), 6)
+        centerText(monitor, "Item Storage", currentLine)
+        currentLine = currentLine + 1
+        centerText(monitor, "Cells: " .. getCellsPerType("item"), currentLine)
+        currentLine = currentLine + 1
+        centerText(monitor, string.format("Used: %s | Free: %s", formatBytes(usedItems), formatBytes(freeItems)), currentLine)
+        currentLine = currentLine + 1
+        centerText(monitor, string.format("%.1f%% Used | %.1f%% Free", percentUsedItems, percentFreeItems), currentLine)
+        currentLine = currentLine + 2 -- Freizeile nach Item Storage
 
         -- Fluid Storage
         local usedFluids, maxFluids = getFluidStorage()
@@ -108,10 +113,14 @@ local function updateDisplay()
         local percentUsedFluids = (maxFluids > 0) and ((usedFluids / maxFluids) * 100) or 0
         local percentFreeFluids = 100 - percentUsedFluids
         monitor.setTextColor(colors.cyan)
-        centerText(monitor, "Fluid Storage", 7)
-        centerText(monitor, "Cells: " .. getCellsPerType("fluid"), 8)
-        centerText(monitor, string.format("Used: %s | Free: %s", formatBytes(usedFluids), formatBytes(freeFluids)), 9)
-        centerText(monitor, string.format("%.1f%% Used | %.1f%% Free", percentUsedFluids, percentFreeFluids), 10)
+        centerText(monitor, "Fluid Storage", currentLine)
+        currentLine = currentLine + 1
+        centerText(monitor, "Cells: " .. getCellsPerType("fluid"), currentLine)
+        currentLine = currentLine + 1
+        centerText(monitor, string.format("Used: %s | Free: %s", formatBytes(usedFluids), formatBytes(freeFluids)), currentLine)
+        currentLine = currentLine + 1
+        centerText(monitor, string.format("%.1f%% Used | %.1f%% Free", percentUsedFluids, percentFreeFluids), currentLine)
+        currentLine = currentLine + 2 -- Freizeile nach Fluid Storage
 
         -- Chemical Storage
         local usedGases, maxGases = getChemicalStorage()
@@ -119,10 +128,13 @@ local function updateDisplay()
         local percentUsedGases = (maxGases > 0) and ((usedGases / maxGases) * 100) or 0
         local percentFreeGases = 100 - percentUsedGases
         monitor.setTextColor(colors.purple)
-        centerText(monitor, "Chemical Storage", 11)
-        centerText(monitor, "Cells: " .. getCellsPerType("chemical"), 12)
-        centerText(monitor, string.format("Used: %s | Free: %s", formatBytes(usedGases), formatBytes(freeGases)), 13)
-        centerText(monitor, string.format("%.1f%% Used | %.1f%% Free", percentUsedGases, percentFreeGases), 14)
+        centerText(monitor, "Chemical Storage", currentLine)
+        currentLine = currentLine + 1
+        centerText(monitor, "Cells: " .. getCellsPerType("chemical"), currentLine)
+        currentLine = currentLine + 1
+        centerText(monitor, string.format("Used: %s | Free: %s", formatBytes(usedGases), formatBytes(freeGases)), currentLine)
+        currentLine = currentLine + 1
+        centerText(monitor, string.format("%.1f%% Used | %.1f%% Free", percentUsedGases, percentFreeGases), currentLine)
 
         sleep(5)
     end
