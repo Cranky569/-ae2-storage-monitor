@@ -1,36 +1,107 @@
-function getFilteredItemCellBytes(bridge)
-    if not bridge then return 0 end
+-- Robustiertes Anzeige-Script für ME Bridge (partitioned/include precise rauslassen)
+-- Debug aktiviert: Ausgaben im ComputerCraft-Terminal beginnen mit "DEBUG:"
 
-    if type(bridge.getCells) ~= "function" then
-        local ok, fallback = safeCall(bridge.getTotalItemStorage)
-        if ok and fallback then return fallback end
+-- Function to format large numbers into a human-readable format
+function formatBytes(bytes)
+    bytes = bytes or 0
+    if bytes >= 1000000 then
+        return string.format("%.1fM", bytes / 1000000)
+    elseif bytes >= 1000 then
+        return string.format("%.1fK", bytes / 1000)
+    else
+        return tostring(bytes)
+    end
+end
+
+-- Safe pcall helper
+local function safeCall(fn, ...)
+    if type(fn) ~= "function" then return false, nil end
+    local ok, res = pcall(fn, ...)
+    if not ok then
+        return false, res
+    end
+    return true, res
+end
+
+-- Helper function: filter only valid Item cells (exclude "Partitioned - Include Precise")
+function getFilteredItemCellBytes(bridge, monitor, startLine)
+    if not bridge then
+        print("DEBUG: getFilteredItemCellBytes: bridge is nil")
         return 0
     end
 
-    local ok, cells = pcall(function() return bridge.getCells() end)
-    if not ok or type(cells) ~= "table" then return 0 end
+    if type(bridge.getCells) ~= "function" then
+        print("DEBUG: bridge.getCells() not available; falling back to getTotalItemStorage() if present")
+        local ok, fallback = safeCall(bridge.getTotalItemStorage)
+        if ok and fallback then
+            print("DEBUG: Fallback total item storage:", tostring(fallback))
+            if monitor then
+                monitor.setCursorPos(1, startLine)
+                monitor.write("Fallback Total Item Storage: " .. formatBytes(fallback))
+            end
+            return fallback
+        end
+        return 0
+    end
+
+    -- call getCells safely
+    local ok, cellsOrErr = pcall(function() return bridge.getCells() end)
+    if not ok then
+        print("DEBUG: bridge.getCells() call failed:", tostring(cellsOrErr))
+        return 0
+    end
+    local cells = cellsOrErr
+    if not cells or type(cells) ~= "table" then
+        print("DEBUG: bridge.getCells() returned nil or non-table")
+        return 0
+    end
 
     local sumTotal = 0
+    local line = startLine or 15
     for i, cell in pairs(cells) do
-        print("DEBUG: Cell #" .. i)
-        if type(cell) == "table" then
-            for k, v in pairs(cell) do
-                -- nur primitive Werte oder tostring für Objekte
-                local valueStr = (type(v) == "table") and "<table>" or tostring(v)
-                print("  " .. tostring(k) .. ": " .. valueStr)
-            end
-        else
-            print("  <not a table>: " .. tostring(cell))
-        end
-
         local ctype = cell.cellType or cell.type or "unknown"
         local isPartitioned = cell.isPartitioned or false
         local isPrecise = cell.isPrecise or false
         local totalBytes = cell.totalBytes or 0
+        local cellName = cell.item or "<unknown>"
+
+        if monitor then
+            if line <= monitor.getSize() then
+                monitor.setCursorPos(1, line)
+                monitor.write(string.format("[%d] %s | Type: %s | Bytes: %s | Partitioned: %s | Precise: %s",
+                    i, cellName, tostring(ctype), formatBytes(totalBytes),
+                    tostring(isPartitioned), tostring(isPrecise)))
+                line = line + 1
+            end
+        end
 
         if tostring(ctype) == "item" and not (isPartitioned and isPrecise) then
             sumTotal = sumTotal + totalBytes
         end
     end
+
     return sumTotal
 end
+
+-- Function to calculate free item storage (uses filtered cells)
+function getItemStorage(monitor, startLine)
+    local bridge = peripheral.find("me_bridge")
+    if not bridge then
+        print("DEBUG: getItemStorage: no me_bridge peripheral found")
+        return 0, 0
+    end
+
+    local okUsed, usedItems = safeCall(bridge.getUsedItemStorage)
+    if not okUsed then
+        print("DEBUG: getUsedItemStorage failed:", tostring(usedItems))
+        usedItems = 0
+    end
+
+    local maxItems = getFilteredItemCellBytes(bridge, monitor, startLine)
+    return usedItems or 0, maxItems or 0
+end
+
+-- Rest des Scripts unverändert, nur `getItemStorage()` anpassen:
+-- In updateDisplay() rufst du jetzt auf:
+-- local usedItems, maxItems = getItemStorage(monitor, 15)
+-- Dann werden alle Cells auf dem Monitor angezeigt
