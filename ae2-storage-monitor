@@ -1,5 +1,5 @@
 -- chemical_cells_monitor.lua
--- Zeigt Chemical Cells auf dem Monitor an und berücksichtigt Partitioned/IncludedPrecise korrekt
+-- Zeigt Chemical Cells und Free/Used Storage korrekt an (IncludedPrecise abziehen)
 
 local function formatBytes(bytes)
     if bytes >= 1000000 then
@@ -11,6 +11,7 @@ local function formatBytes(bytes)
     end
 end
 
+-- Monitor und Bridge suchen
 local mon = peripheral.find("monitor")
 local bridge = peripheral.find("me_bridge")
 
@@ -18,7 +19,6 @@ if not mon then
     print("Kein Monitor gefunden!")
     return
 end
-
 if not bridge then
     mon.clear()
     mon.setCursorPos(1,1)
@@ -26,6 +26,7 @@ if not bridge then
     return
 end
 
+-- Monitor vorbereiten
 mon.clear()
 mon.setBackgroundColor(colors.black)
 mon.setTextColor(colors.white)
@@ -37,7 +38,7 @@ local function monPrint(text)
     if cursorY > h then
         mon.scroll(1)
         cursorY = h
-        mon.setCursorPos(1, cursorY)
+        mon.setCursorPos(1,cursorY)
         mon.clearLine()
     end
     mon.setCursorPos(1,cursorY)
@@ -45,53 +46,53 @@ local function monPrint(text)
     cursorY = cursorY + 1
 end
 
--- Chemical Storage anzeigen
+-- Funktion, die Chemical Cells ausgibt und Free/Used korrekt berechnet
 local function displayChemicalCells()
-    local usedChem = 0
-    local freeChem = 0
-    if type(bridge.getUsedChemicalStorage) == "function" then
-        usedChem = bridge.getUsedChemicalStorage()
-    end
-    if type(bridge.getTotalChemicalStorage) == "function" then
-        freeChem = bridge.getTotalChemicalStorage()
-    end
+    -- Basiswerte vom ME Bridge abrufen
+    local usedChem = bridge.getUsedChemicalStorage and bridge.getUsedChemicalStorage() or 0
+    local freeChem = bridge.getTotalChemicalStorage and bridge.getTotalChemicalStorage() or 0
 
-    if type(bridge.getCells) == "function" then
-        local ok, cells = pcall(bridge.getCells, bridge)
-        if ok and type(cells) == "table" then
-            monPrint("=== CHEMICAL CELLS ===")
-            for i, cell in ipairs(cells) do
-                local ctype = cell.cellType or cell.type or cell["cell_type"] or "unknown"
-                if ctype == "chemical" or ctype == "c" then
-                    local name = cell.item or cell.name or "nil"
-                    local totalBytes = cell.totalBytes or cell.bytes or 0
-                    local partitioned = cell.isPartitioned or cell.partitioned or false
-                    local includedPrecise = cell.isIncludedPrecise or cell.includePrecise or false
-                    local excluded = cell.isExcluded or cell.excluded or false
-
-                    -- Nur IncludedPrecise vom Free Storage abziehen
-                    if partitioned and includedPrecise then
-                        freeChem = freeChem - totalBytes
-                        if freeChem < 0 then freeChem = 0 end
-                    end
-
-                    monPrint(string.format(
-                        "Cell #%d: name=%s | totalBytes=%s | Partitioned=%s | IncludedPrecise=%s | Excluded=%s",
-                        i, name, formatBytes(totalBytes), tostring(partitioned), tostring(includedPrecise), tostring(excluded)
-                    ))
-                end
-            end
-        else
-            monPrint("Fehler beim Abrufen der Cells: " .. tostring(cells))
-        end
-    else
+    -- Cells abrufen
+    if type(bridge.getCells) ~= "function" then
         monPrint("getCells() nicht verfügbar")
+        return
     end
 
+    local ok, cells = pcall(bridge.getCells, bridge)
+    if not ok or type(cells) ~= "table" then
+        monPrint("Fehler beim Abrufen der Cells: " .. tostring(cells))
+        return
+    end
+
+    monPrint("=== CHEMICAL CELLS ===")
+    for i, cell in ipairs(cells) do
+        local ctype = cell.cellType or cell.type or "unknown"
+        if ctype == "chemical" or ctype == "c" then
+            local name = cell.item or cell.name or "nil"
+            local totalBytes = cell.totalBytes or cell.bytes or 0
+            local partitioned = cell.isPartitioned or cell.partitioned or false
+            local includedPrecise = cell.isIncludedPrecise or cell.includePrecise or false
+            local excluded = cell.isExcluded or cell.excluded or false
+
+            -- IncludedPrecise vom Free Storage abziehen
+            if partitioned and includedPrecise then
+                freeChem = freeChem - totalBytes
+                if freeChem < 0 then freeChem = 0 end
+            end
+
+            monPrint(string.format(
+                "Cell #%d: name=%s | totalBytes=%s | Partitioned=%s | IncludedPrecise=%s | Excluded=%s",
+                i, name, formatBytes(totalBytes), tostring(partitioned), tostring(includedPrecise), tostring(excluded)
+            ))
+        end
+    end
+
+    monPrint("--------------------------")
     monPrint(string.format("Used Chemical Storage: %s", formatBytes(usedChem)))
     monPrint(string.format("Free Chemical Storage: %s", formatBytes(freeChem)))
 end
 
+-- Main Loop
 while true do
     mon.clear()
     cursorY = 1
