@@ -1,5 +1,5 @@
 -- me_bridge_cells_monitor.lua
--- Zeigt alle Methoden der me_bridge, die "cell" enthalten, auf dem Monitor
+-- Zeigt alle Zellen der me_bridge mit allen verfügbaren Infos auf dem Monitor
 
 local mon = peripheral.find("monitor")
 local bridge = peripheral.find("me_bridge")
@@ -36,31 +36,27 @@ local function monPrint(text)
     cursorY = cursorY + 1
 end
 
--- Alle Methoden der Bridge auflisten
-local methods = peripheral.getMethods(peripheral.getName(bridge))
-monPrint("=== ME Bridge Methoden (Cells) ===")
-for _, m in ipairs(methods) do
-    if string.find(string.lower(m), "cell") then
-        monPrint("- " .. m)
-    end
+-- Prüfen, ob getCells() verfügbar ist
+if type(bridge.getCells) ~= "function" then
+    monPrint("getCells() nicht verfügbar!")
+    return
 end
 
--- Optional: listCells() direkt ausgeben
-if bridge.listCells then
-    local ok, cells = pcall(bridge.listCells, bridge)
-    if ok and type(cells) == "table" then
-        monPrint("---- listCells() ----")
-        for i, cell in ipairs(cells) do
-            local item = cell.item or cell.name or "nil"
-            local ctype = cell.cellType or cell.type or "nil"
-            local totalBytes = cell.totalBytes or 0
-            monPrint(string.format("Cell #%d: item=%s | type=%s | totalBytes=%d", i, item, ctype, totalBytes))
-        end
-    else
-        monPrint("listCells() Fehler: " .. tostring(cells))
-    end
-else
-    monPrint("listCells() nicht verfügbar")
+-- Alle Zellen abrufen
+local ok, cells = pcall(bridge.getCells, bridge)
+if not ok or type(cells) ~= "table" then
+    monPrint("Fehler beim Abrufen der Zellen: " .. tostring(cells))
+    return
 end
 
-monPrint("=== Ende ===")
+monPrint("=== ME Bridge Zellen ===")
+for i, cell in ipairs(cells) do
+    local item = cell.item or cell.name or "nil"
+    local ctype = cell.cellType or cell.type or "nil"
+    local totalBytes = cell.totalBytes or 0
+    local bytesPerType = cell.bytesPerType or 0
+    local isPartitioned = cell.isPartitioned or false
+    local isPrecise = cell.isPrecise or false
+
+    monPrint(string.format(
+        "Cel
