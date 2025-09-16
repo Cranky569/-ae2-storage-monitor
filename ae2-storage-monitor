@@ -1,52 +1,20 @@
--- Funktion, um Fluid Storage zu berechnen (Used komplett, Free ohne Included Precise)
-function getFluidStorage()
-    local bridge = peripheral.find("me_bridge")
-    if not bridge then return 0, 0 end
+local monitor = peripheral.find("monitor")
+if not monitor then
+    print("Monitor nicht gefunden!")
+    print(textutils.serialize(peripheral.getNames()))
+    return
+end
 
-    -- Used immer komplett von Bridge
-    local _, usedFluids = safeCall(bridge.getUsedFluidStorage)
+monitor.clear()
+monitor.setCursorPos(1,1)
+monitor.setTextColor(colors.white)
+monitor.write("Monitor funktioniert!")
 
-    local freeFluids = 0
-    if type(bridge.getCells) == "function" then
-        local ok, cells = pcall(bridge.getCells, bridge)
-        if ok and type(cells) == "table" then
-            for _, cell in pairs(cells) do
-                local ctype = cell.cellType or cell.type
-                local isPrecise = cell.isPrecise or false
-                local isPartitioned = cell.isPartitioned or false
-                local partitionType = cell.partitionType or "" -- "Included" oder "Excluded"
-
-                if tostring(ctype) == "fluid" then
-                    local available = 0
-                    if type(cell.getAvailableBytes) == "function" then
-                        local ok2, bytes = pcall(cell.getAvailableBytes, cell)
-                        if ok2 and bytes then
-                            available = bytes
-                        end
-                    else
-                        -- Fallback: total - used
-                        local total = cell.totalBytes or 0
-                        local used = cell.usedBytes or 0
-                        available = total - used
-                    end
-
-                    -- Partition + Precise Logik
-                    if not (isPrecise and isPartitioned and partitionType == "Included") then
-                        -- Alles andere zählt zum Free
-                        freeFluids = freeFluids + available
-                    end
-                    -- Included Precise wird ignoriert, Excluded Precise bleibt im Free
-                end
-            end
-        end
-    else
-        -- Fallback, falls getCells nicht verfügbar
-        local ok, total = safeCall(bridge.getTotalFluidStorage)
-        if ok then freeFluids = total - usedFluids end
-    end
-
-    -- Sicherheit: Free darf nicht negativ sein
-    if freeFluids < 0 then freeFluids = 0 end
-
-    return usedFluids, freeFluids
+local bridge = peripheral.find("me_bridge")
+if not bridge then
+    print("Bridge nicht gefunden!")
+else
+    print("Bridge gefunden!")
+    print("Used Fluids: ", bridge.getUsedFluidStorage())
+    print("Total Fluids: ", bridge.getTotalFluidStorage())
 end
