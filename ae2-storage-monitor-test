@@ -1,4 +1,4 @@
--- Funktion zur Formatierung großer Zahlen
+-- Function to format large numbers
 local function formatBytes(bytes)
     if bytes >= 1e6 then
         return string.format("%.1fM", bytes / 1e6)
@@ -52,7 +52,7 @@ local function getDriveCount()
     return 0
 end
 
--- Anzahl der Cells pro Typ
+-- Number of cells per type
 local function getCellsPerType(typeName)
     local bridge = peripheral.find("me_bridge")
     if not bridge then return 0 end
@@ -65,7 +65,7 @@ local function getCellsPerType(typeName)
     return count
 end
 
--- Text zentrieren
+-- Center text on the monitor
 local function centerText(monitor, text, line)
     local w, _ = monitor.getSize()
     local x = math.floor((w - #text) / 2) + 1
@@ -73,7 +73,7 @@ local function centerText(monitor, text, line)
     monitor.write(text)
 end
 
--- Display-Programm
+-- Display program
 local function updateDisplay()
     local monitor = peripheral.find("monitor")
     if not monitor then
@@ -90,7 +90,7 @@ local function updateDisplay()
         -- Drives
         local driveCount = getDriveCount()
         centerText(monitor, "Drives: " .. driveCount, currentLine)
-        currentLine = currentLine + 2 -- Leerzeile nach Drives
+        currentLine = currentLine + 2 -- blank line after Drives
 
         -- Item Storage
         local usedItems, maxItems = getItemStorage()
@@ -105,7 +105,7 @@ local function updateDisplay()
         centerText(monitor, string.format("Used: %s | Free: %s", formatBytes(usedItems), formatBytes(freeItems)), currentLine)
         currentLine = currentLine + 1
         centerText(monitor, string.format("%.1f%% Used | %.1f%% Free", percentUsedItems, percentFreeItems), currentLine)
-        currentLine = currentLine + 2 -- Freizeile nach Item Storage
+        currentLine = currentLine + 2 -- blank line after Item Storage
 
         -- Fluid Storage
         local usedFluids, maxFluids = getFluidStorage()
@@ -120,7 +120,7 @@ local function updateDisplay()
         centerText(monitor, string.format("Used: %s | Free: %s", formatBytes(usedFluids), formatBytes(freeFluids)), currentLine)
         currentLine = currentLine + 1
         centerText(monitor, string.format("%.1f%% Used | %.1f%% Free", percentUsedFluids, percentFreeFluids), currentLine)
-        currentLine = currentLine + 2 -- Freizeile nach Fluid Storage
+        currentLine = currentLine + 2 -- blank line after Fluid Storage
 
         -- Chemical Storage
         local usedGases, maxGases = getChemicalStorage()
