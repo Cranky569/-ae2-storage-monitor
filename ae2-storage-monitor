@@ -1,5 +1,5 @@
--- me_bridge_methods_monitor.lua
--- Zeigt wichtige Methoden der me_bridge (z.B. craftItem) auf einem Monitor
+-- me_bridge_dump_to_monitor.lua
+-- Gibt alle Infos der me_bridge auf einem Monitor aus (mit Auto-Scroll)
 
 local mon = peripheral.find("monitor")
 local bridge = peripheral.find("me_bridge")
@@ -9,46 +9,89 @@ if not mon then
     return
 end
 if not bridge then
-    mon.write("Kein me_bridge gefunden!")
+    print("Kein me_bridge gefunden!")
     return
 end
 
-mon.setTextScale(1)
+mon.setTextScale(0.5) -- mehr Zeilen auf den Monitor kriegen
 mon.setBackgroundColor(colors.black)
+mon.setTextColor(colors.white)
 mon.clear()
-mon.setCursorPos(1,1)
 
-mon.write("=== ME Bridge Methoden ===")
-local y = 2
+local monW, monH = mon.getSize()
+local cursorX, cursorY = 1, 1
 
--- Alle Methoden der Bridge auflisten
-local methods = peripheral.getMethods(peripheral.getName(bridge))
-for _, m in ipairs(methods) do
-    mon.setCursorPos(1,y)
-    mon.write(m)
-    y = y + 1
+-- Funktion: schreibt Text auf den Monitor mit automatischem Scrollen
+local function monPrint(text)
+    if cursorY > monH then
+        mon.scroll(1)
+        cursorY = monH
+        mon.setCursorPos(1, cursorY)
+        mon.clearLine()
+    end
+    mon.setCursorPos(1, cursorY)
+    mon.write(text)
+    cursorY = cursorY + 1
 end
 
--- Optional: testweise craftables anzeigen
+monPrint("=== ME Bridge Debug Dump ===")
+
+-- Alle Methoden listen
+local methods = peripheral.getMethods(peripheral.getName(bridge)) or {}
+monPrint("Methoden:")
+for _, m in ipairs(methods) do
+    monPrint("  - " .. m)
+end
+
+-- Cells anzeigen (falls vorhanden)
+if bridge.listCells then
+    local ok, cells = pcall(bridge.listCells, bridge)
+    if ok and type(cells) == "table" then
+        monPrint("listCells() -> " .. tostring(#cells) .. " Eintraege")
+        for i, cell in ipairs(cells) do
+            monPrint("Cell #" .. i)
+            for k, v in pairs(cell) do
+                monPrint("  " .. tostring(k) .. ": " .. tostring(v))
+            end
+        end
+    else
+        monPrint("listCells() -> Fehler: " .. tostring(cells))
+    end
+else
+    monPrint("listCells() nicht verfuegbar.")
+end
+
+-- Craftables anzeigen (falls vorhanden)
 if bridge.getCraftables then
     local ok, craftables = pcall(bridge.getCraftables)
-    y = y + 1
-    mon.setCursorPos(1,y)
     if ok and type(craftables) == "table" then
-        mon.write("Craftables: " .. tostring(#craftables))
+        monPrint("getCraftables() -> " .. tostring(#craftables) .. " Items")
+        for i, craft in ipairs(craftables) do
+            monPrint("  " .. tostring(craft.name or craft.label or i))
+        end
     else
-        mon.write("getCraftables -> Fehler oder nil")
+        monPrint("getCraftables() -> Fehler: " .. tostring(craftables))
     end
+else
+    monPrint("getCraftables() nicht verfuegbar.")
 end
 
--- Optional: CPUs anzeigen
+-- Crafting CPUs anzeigen (falls vorhanden)
 if bridge.getCraftingCPUs then
     local ok, cpus = pcall(bridge.getCraftingCPUs)
-    y = y + 1
-    mon.setCursorPos(1,y)
     if ok and type(cpus) == "table" then
-        mon.write("Crafting CPUs: " .. tostring(#cpus))
+        monPrint("getCraftingCPUs() -> " .. tostring(#cpus) .. " CPUs")
+        for i, cpu in ipairs(cpus) do
+            monPrint("CPU #" .. i)
+            for k, v in pairs(cpu) do
+                monPrint("  " .. tostring(k) .. ": " .. tostring(v))
+            end
+        end
     else
-        mon.write("getCraftingCPUs -> Fehler oder nil")
+        monPrint("getCraftingCPUs() -> Fehler: " .. tostring(cpus))
     end
+else
+    monPrint("getCraftingCPUs() nicht verfuegbar.")
 end
+
+monPrint("=== Ende ===")
