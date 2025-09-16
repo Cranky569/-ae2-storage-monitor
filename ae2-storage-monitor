@@ -1,6 +1,7 @@
 -- me_bridge_storage_monitor.lua
 -- Zeigt Fluid und Chemical Storage auf dem Monitor an
 -- Partitioned + Precise Zellen werden korrekt vom Free Storage abgezogen
+-- Included Precise Zellen werden NICHT vom Free Storage abgezogen
 
 local function formatBytes(bytes)
     if bytes >= 1000000 then
@@ -59,7 +60,7 @@ local function processStorage(cellType)
     elseif cellType == "chemical" then
         usedFn, totalFn = bridge.getUsedChemicalStorage, bridge.getTotalChemicalStorage
     else
-        return 0,0
+        return 0, 0
     end
 
     local okUsed, used = safeCall(usedFn, bridge)
@@ -73,28 +74,31 @@ local function processStorage(cellType)
         if okCells and type(cells) == "table" then
             monPrint("=== " .. string.upper(cellType) .. " CELLS ===")
             for i, cell in ipairs(cells) do
-                local ctype = cell.cellType or cell.type or cell["cell_type"] or "unknown"
+                local ctype = cell.cellType or cell.type or cell["cell_type"] or "nil"
                 if ctype == cellType then
-                    local name = cell.item or cell.name or "nil"
+                    local item = cell.item or cell.name or "nil"
                     local totalBytes = cell.totalBytes or cell.bytes or 0
                     local partitioned = cell.isPartitioned or cell.partitioned or false
                     local precise = cell.isPrecise or cell.precise or false
+                    local includePrecise = cell.isIncludedPrecise or cell.includePrecise or false
 
-                    -- Nur Partitioned + Precise Zellen vom Free abziehen
-                    if partitioned and precise and totalBytes > 0 then
+                    -- Nur vom Free abziehen, wenn Partitioned AND Precise UND NICHT Included Precise
+                    if partitioned and precise and not includePrecise and totalBytes > 0 then
                         freeTotal = freeTotal - totalBytes
                         if freeTotal < 0 then freeTotal = 0 end
                     end
 
                     monPrint(string.format(
-                        "Cell #%d: name=%s | totalBytes=%s | Partitioned=%s | Precise=%s",
-                        i, name, formatBytes(totalBytes), tostring(partitioned), tostring(precise)
+                        "Cell #%d: name=%s | totalBytes=%s | Partitioned=%s | Precise=%s | IncludedPrecise=%s",
+                        i, item, formatBytes(totalBytes), tostring(partitioned), tostring(precise), tostring(includePrecise)
                     ))
                 end
             end
         else
-            monPrint(cellType .. " cells konnten nicht geladen werden!")
+            monPrint("getCells() Fehler oder keine Zellen gefunden")
         end
+    else
+        monPrint("getCells() nicht verfügbar")
     end
 
     return usedTotal, freeTotal
@@ -115,16 +119,14 @@ while true do
     -- Fluids
     local usedFluids, freeFluids = processStorage("fluid")
     local percentUsedF = (freeFluids + usedFluids > 0) and (usedFluids / (freeFluids + usedFluids) * 100) or 0
-    centerText("FLUID STORAGE", cursorY); cursorY = cursorY + 1
-    centerText(string.format("Used: %s | Free: %s", formatBytes(usedFluids), formatBytes(freeFluids)), cursorY); cursorY = cursorY + 1
-    centerText(string.format("%.1f%% Used", percentUsedF), cursorY); cursorY = cursorY + 2
+    centerText("Fluid Storage", cursorY); cursorY = cursorY + 1
+    centerText(string.format("Used: %s | Free: %s", formatBytes(usedFluids), formatBytes(freeFluids)), cursorY); cursorY = cursorY + 2
 
     -- Chemicals
     local usedGases, freeGases = processStorage("chemical")
     local percentUsedC = (freeGases + usedGases > 0) and (usedGases / (freeGases + usedGases) * 100) or 0
-    centerText("CHEMICAL STORAGE", cursorY); cursorY = cursorY + 1
-    centerText(string.format("Used: %s | Free: %s", formatBytes(usedGases), formatBytes(freeGases)), cursorY); cursorY = cursorY + 1
-    centerText(string.format("%.1f%% Used", percentUsedC), cursorY); cursorY = cursorY + 1
+    centerText("Chemical Storage", cursorY); cursorY = cursorY + 1
+    centerText(string.format("Used: %s | Free: %s", formatBytes(usedGases), formatBytes(freeGases)), cursorY); cursorY = cursorY + 2
 
     sleep(5)
 end
