@@ -1,5 +1,5 @@
 -- Test-Script für me_bridge.listCells()
--- Gibt alle gefundenen Cells im Terminal aus
+-- Prüft, ob listCells verfügbar ist und zeigt alle Felder pro Cell an
 
 local bridge = peripheral.find("me_bridge")
 
@@ -8,8 +8,8 @@ if not bridge then
     return
 end
 
--- Prüfen ob listCells existiert
-if not bridge.listCells() then
+-- Prüfen ob listCells als Funktion existiert
+if not bridge.listCells then
     print("Diese me_bridge unterstützt listCells() nicht!")
     return
 end
@@ -21,11 +21,18 @@ if not ok then
     return
 end
 
-if not cells then
-    print("listCells() hat nil zurückgegeben.")
+if not cells or type(cells) ~= "table" then
+    print("listCells() hat nichts Sinnvolles zurückgegeben.")
     return
 end
 
 print("----- ME Bridge Cells -----")
-print(textutils.serialize(cells))
+for i, cell in ipairs(cells) do
+    print("Cell #" .. i)
+    print("  item:         " .. tostring(cell.item))
+    print("  cellType:     " .. tostring(cell.cellType))
+    print("  bytesPerType: " .. tostring(cell.bytesPerType))
+    print("  totalBytes:   " .. tostring(cell.totalBytes))
+    print("---------------------------")
+end
 print("----- Ende -----")
