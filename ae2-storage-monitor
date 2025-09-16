@@ -12,13 +12,28 @@ end
 -- Helper function: filter only valid Item cells (exclude "Partitioned - Include Precise")
 function getFilteredItemCellBytes(bridge)
     local cells = bridge.listCells()
+    if not cells then
+        print("DEBUG: bridge.listCells() returned nil")
+        return 0
+    end
+
+    print("DEBUG: Cells data ->")
+    print(textutils.serialize(cells))  -- zeigt komplette Tabelle im Terminal
+
     local sumTotal = 0
-    for _, cell in pairs(cells) do
+    for i, cell in pairs(cells) do
+        print(string.format("DEBUG: Checking cell #%d", i))
+        print(textutils.serialize(cell))
+
         if cell.cellType == "item" then
             -- Exclude "Partitioned - Include Precise"
             if not (cell.isPartitioned and cell.isPrecise) then
                 sumTotal = sumTotal + (cell.totalBytes or 0)
+            else
+                print("DEBUG: Skipping Partitioned - Include Precise cell")
             end
+        else
+            print("DEBUG: Skipping non-item cell")
         end
     end
     return sumTotal
