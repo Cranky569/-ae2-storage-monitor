@@ -49,46 +49,66 @@ local function formatBytes(bytes)
     end
 end
 
--- Funktion: Zellen abrufen und berechnen
-local function processCells(cellType)
+-- Typen: item / fluid / chemical
+local types = {"item", "fluid", "chemical"}
+
+-- Funktion: Storage für Typ berechnen
+local function processStorage(cellType)
     local usedTotal, freeTotal = 0, 0
-    if type(bridge.getCells) ~= "function" then
-        monPrint(cellType .. ": getCells() nicht verfügbar")
+    local usedFunc, totalFunc
+
+    if cellType == "item" then
+        usedFunc = bridge.getUsedItemStorage
+        totalFunc = bridge.getTotalItemStorage
+    elseif cellType == "fluid" then
+        usedFunc = bridge.getUsedFluidStorage
+        totalFunc = bridge.getTotalFluidStorage
+    elseif cellType == "chemical" then
+        usedFunc = bridge.getUsedChemicalStorage
+        totalFunc = bridge.getTotalChemicalStorage
+    else
         return
     end
 
-    local ok, cells = pcall(bridge.getCells, bridge)
-    if not ok or type(cells) ~= "table" then
-        monPrint(cellType .. ": Fehler beim Abrufen der Cells")
-        return
-    end
+    -- used / max
+    local ok, used = pcall(usedFunc, bridge)
+    used = ok and used or 0
+    ok, max = pcall(totalFunc, bridge)
+    max = ok and max or 0
 
-    monPrint("=== " .. cellType .. " Cells ===")
-    for i, cell in ipairs(cells) do
-        local ctype = cell.cellType or cell.type or "nil"
-        if ctype == cellType then
-            local item = cell.item or cell.name or "nil"
-            local totalBytes = cell.totalBytes or 0
-            local partitioned = cell.isPartitioned or cell.partitioned or false
-            local excluded = cell.isExcluded or cell.excluded or false
-            local precise = cell.isPrecise or cell.precise or false
+    usedTotal = used
+    freeTotal = max -- Free total before removing Included Precise
 
-            -- Alle Zellen zählen für Used
-            usedTotal = usedTotal + totalBytes
+    -- Details der Zellen
+    if type(bridge.getCells) == "function" then
+        local okCells, cells = pcall(bridge.getCells, bridge)
+        if okCells and type(cells) == "table" then
+            monPrint("=== " .. cellType .. " Cells ===")
+            for i, cell in ipairs(cells) do
+                local ctype = cell.cellType or cell.type or "nil"
+                if ctype == cellType then
+                    local item = cell.item or cell.name or "nil"
+                    local totalBytes = cell.totalBytes or 0
+                    local partitioned = cell.isPartitioned or cell.partitioned or false
+                    local excluded = cell.isExcluded or cell.excluded or false
+                    local precise = cell.isPrecise or cell.precise or false
 
-            -- Für Free nur Included Precise ausschließen
-            if not precise then
-                freeTotal = freeTotal + totalBytes
+                    -- Free Storage reduziert nur Included Precise
+                    if precise then
+                        freeTotal = freeTotal - totalBytes
+                        if freeTotal < 0 then freeTotal = 0 end
+                    end
+
+                    monPrint(string.format(
+                        "Cell #%d: item=%s | totalBytes=%s | Partitioned=%s | Excluded=%s | Precise=%s",
+                        i, item, formatBytes(totalBytes), tostring(partitioned), tostring(excluded), tostring(precise)
+                    ))
+                end
             end
-
-            monPrint(string.format(
-                "Cell #%d: item=%s | totalBytes=%s | Partitioned=%s | Excluded=%s | Precise=%s",
-                i, item, formatBytes(totalBytes), tostring(partitioned), tostring(excluded), tostring(precise)
-            ))
         end
     end
 
-    monPrint(string.format("Used %s | Free %s", formatBytes(usedTotal), formatBytes(freeTotal)))
+    monPrint(string.format("%s Storage: Used=%s | Free=%s", cellType, formatBytes(usedTotal), formatBytes(freeTotal)))
     monPrint("---------------------------")
 end
 
@@ -97,9 +117,9 @@ while true do
     monitor.clear()
     cursorY = 1
 
-    processCells("item")
-    processCells("fluid")
-    processCells("chemical")
+    for _, t in ipairs(types) do
+        processStorage(t)
+    end
 
     sleep(5)
 end
